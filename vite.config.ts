@@ -29,4 +29,8 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  fs: {
+    allow: ['.'],
+  },
+  historyApiFallback: true
 }));
