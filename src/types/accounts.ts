@@ -1,6 +1,7 @@
 import { SyncState } from '../constants/accountConstant';
 
 export type Account = {
+  isDeleted: unknown;
   id: string;
   createdAt: string;
   updatedAt: string;

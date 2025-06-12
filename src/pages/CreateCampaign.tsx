@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, ArrowRight, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import CampaignBreadcrumb from '@/components/Campaign/CampaignBreadcrumb';
@@ -9,14 +9,21 @@ import Sequence from '@/components/Campaign/Sequence';
 import ReviewLaunch from '@/components/Campaign/ReviewLaunch';
 import { usePostCampaign } from '@/hooks/useCampaignMutations';
 import { Campaign, CampaignState } from '@/types/campaigns';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import DashboardLayout from '@/components/DashboardLayout';
+import { useQuery } from '@/common/api';
+import { getCampaignById } from '@/api/campaigns';
 
 // Campaign creation content component
 const CreateCampaignContent = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const params = useParams();
+  
+  // Check if we're in view mode (determined by URL path)
+  const isViewMode = window.location.pathname.includes('/campaign/view/');
+  const campaignId = params.id;
   
   // Campaign data state
   const [campaignData, setCampaignData] = useState<Partial<Campaign>>({
@@ -29,6 +36,30 @@ const CreateCampaignContent = () => {
 
   // Track submission state
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(isViewMode);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  
+  // Fetch campaign data if in view mode
+  useEffect(() => {
+    if (isViewMode && campaignId) {
+      setIsLoading(true);
+      getCampaignById(campaignId)
+        .then(response => {
+          setCampaignData(response.data);
+          setIsLoading(false);
+        })
+        .catch(error => {
+          console.error("Error loading campaign:", error);
+          setLoadError("Failed to load campaign details");
+          setIsLoading(false);
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Failed to load campaign details"
+          });
+        });
+    }
+  }, [isViewMode, campaignId]);
   
   // Initialize campaign mutation
   const { mutate: createCampaign } = usePostCampaign();
@@ -40,30 +71,38 @@ const CreateCampaignContent = () => {
     { id: 4, title: 'Review & Launch' }
   ];
 
+  // Modified to allow navigation in view mode
   const handleStepChange = (stepId: number) => {
+    // Remove the view mode check to allow navigation in all modes
     setCurrentStep(stepId);
   };
 
   const handleBack = () => {
-    if (currentStep > 1) {
+    if (isViewMode) {
+      navigate('/allcampaigns');
+    } else if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
     }
   };
 
   const handleContinue = () => {
-    if (currentStep < 4) {
+    if (!isViewMode && currentStep < 4) {
       setCurrentStep(currentStep + 1);
     }
   };
   
   const updateCampaignData = (data: Partial<Campaign>) => {
-    setCampaignData(prev => ({
-      ...prev,
-      ...data
-    }));
+    if (!isViewMode) {
+      setCampaignData(prev => ({
+        ...prev,
+        ...data
+      }));
+    }
   };
   
   const handleSubmitCampaign = () => {
+    if (isViewMode) return;
+    
     setIsSubmitting(true);
     
     // Update accountIDs based on selected senderAccounts
@@ -80,7 +119,7 @@ const CreateCampaignContent = () => {
             title: "Success",
             description: "Campaign created successfully!",
           });
-          navigate('/allcampaigns'); // Redirect to campaigns list
+          navigate('/allcampaigns');
         },
         onError: (error) => {
           toast({
@@ -97,16 +136,44 @@ const CreateCampaignContent = () => {
   };
 
   const renderStepContent = () => {
+    if (isLoading) {
+      return (
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="spinner-border animate-spin inline-block w-8 h-8 border-4 rounded-full border-t-transparent border-primary" role="status"></div>
+            <p className="mt-4 text-gray-600">Loading campaign details...</p>
+          </div>
+        </div>
+      );
+    }
+    
+    if (loadError) {
+      return (
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900">Failed to load campaign</h3>
+            <p className="text-gray-600 mt-2">{loadError}</p>
+            <Button onClick={() => navigate('/allcampaigns')} className="mt-4">
+              Back to Campaigns
+            </Button>
+          </div>
+        </div>
+      );
+    }
+    
     switch (currentStep) {
       case 1:
         return <LinkedInSenders 
                  selectedAccounts={campaignData.senderAccounts || []}
-                 updateAccounts={(accounts) => updateCampaignData({ senderAccounts: accounts })} 
+                 updateAccounts={(accounts) => updateCampaignData({ senderAccounts: accounts })}
+                 viewMode={isViewMode} 
                />;
       case 2:
         return <ListOfLeads 
                  leadData={campaignData.leads} 
                  updateLeads={(leads) => updateCampaignData({ leads })}
+                 viewMode={isViewMode}
                />;
       case 3:
         return <Sequence 
@@ -114,6 +181,7 @@ const CreateCampaignContent = () => {
                  updateWorkflow={(workflow) => updateCampaignData({ workflow })}
                  operationalTimes={campaignData.localOperationalTimes}
                  updateOperationalTimes={(times) => updateCampaignData({ localOperationalTimes: times })}
+                 viewMode={isViewMode}
                />;
       case 4:
         return <ReviewLaunch 
@@ -121,11 +189,13 @@ const CreateCampaignContent = () => {
                  updateCampaignData={updateCampaignData}
                  onSubmit={handleSubmitCampaign}
                  isSubmitting={isSubmitting}
+                 viewMode={isViewMode}
                />;
       default:
         return <LinkedInSenders 
                  selectedAccounts={campaignData.senderAccounts || []}
                  updateAccounts={(accounts) => updateCampaignData({ senderAccounts: accounts })} 
+                 viewMode={isViewMode}
                />;
     }
   };
@@ -140,39 +210,48 @@ const CreateCampaignContent = () => {
               variant="ghost"
               size="sm"
               onClick={handleBack}
-              disabled={currentStep === 1}
               className="text-gray-600 hover:text-gray-900"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Back
+              {isViewMode ? 'Back to Campaigns' : 'Back'}
             </Button>
-            <h1 className="text-2xl font-semibold text-gray-900">Create Campaign</h1>
+            <h1 className="text-2xl font-semibold text-gray-900">
+              {isViewMode ? `View Campaign: ${campaignData.name || ''}` : 'Create Campaign'}
+            </h1>
+            {isViewMode && (
+              <div className="ml-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+                View Only
+              </div>
+            )}
           </div>
           
-          {currentStep < 4 ? (
-            <Button
-              onClick={handleContinue}
-              className="bg-primary hover:bg-primary/90 text-white"
-            >
-              Continue
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-          ) : (
-            <Button
-              onClick={handleSubmitCampaign}
-              className="bg-primary hover:bg-primary/90 text-white"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Creating...' : 'Launch Campaign'}
-            </Button>
+          {!isViewMode && (
+            currentStep < 4 ? (
+              <Button
+                onClick={handleContinue}
+                className="bg-primary hover:bg-primary/90 text-white"
+              >
+                Continue
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            ) : (
+              <Button
+                onClick={handleSubmitCampaign}
+                className="bg-primary hover:bg-primary/90 text-white"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Creating...' : 'Launch Campaign'}
+              </Button>
+            )
           )}
         </div>
 
-        {/* Breadcrumb */}
+        {/* Breadcrumb - Remove disabled prop to allow navigation in view mode */}
         <CampaignBreadcrumb
           steps={steps}
           currentStep={currentStep}
           onStepChange={handleStepChange}
+          // The disabled prop is removed to allow clicking in view mode
         />
 
         {/* Content */}

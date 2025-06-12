@@ -4,6 +4,7 @@ import { getCampaignInsights } from '../api/campaigns';
 
 // Single campaign insights fetch using the API function
 export const fetchCampaignInsights = async (campaignId: string) => {
+
   try {
     const response = await getCampaignInsights(campaignId);
     return response.data;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, TrendingUp, Users, Send, MessageCircle, Loader2, MoreVertical, BarChart3, Pause, StopCircle, Eye } from 'lucide-react';
+import { Plus, TrendingUp, Users, Send, MessageCircle, Loader2, MoreVertical, BarChart3, Pause, StopCircle, Eye, Play } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,44 +15,35 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useQueryClient } from "@tanstack/react-query";
+import { useUpdateCampaign } from '@/hooks/useCampaignMutations';
+import { toast } from "@/components/ui/use-toast";
 
 const CampaignsListContent = () => {
   // Use the campaigns API hook
   const { data: campaigns = [], isLoading, error } = useCampaignsQuery();
   
-  console.log("Campaigns data:", campaigns);
-  // State to hold campaigns with insights
-  const [enhancedCampaigns, setEnhancedCampaigns] = useState([]);
-  
   // Extract campaign IDs for insights fetching
   const campaignIds = campaigns.map(campaign => campaign.id).filter(Boolean);
   
-  // Use the insights API hook
+  // Use the insights queries hook
   const { 
-    data: insightsMap = {}, 
-    isLoading: insightsLoading 
+    data: campaignInsightsMap = {},
+    isLoading: insightsLoading
   } = useCampaignInsightsQueries(campaignIds);
   
-  // When campaigns or insights change, merge the data
-  useEffect(() => {
-    if (campaigns.length && Object.keys(insightsMap).length) {
-      const updatedCampaigns = campaigns.map(campaign => {
-        if (campaign.id && insightsMap[campaign.id]) {
-          return {
-            ...campaign,
-            insights: insightsMap[campaign.id]
-          };
-        }
-        return campaign;
-      });
-      setEnhancedCampaigns(updatedCampaigns);
-    } else {
-      setEnhancedCampaigns(campaigns);
-    }
-  }, [campaigns, insightsMap]);
-
-  // Use enhanced campaigns for calculations
-  const campaignsWithInsights = enhancedCampaigns.length > 0 ? enhancedCampaigns : campaigns;
+  // Merge campaigns with their insights
+  const campaignsWithInsights = React.useMemo(() => {
+    return campaigns.map(campaign => ({
+      ...campaign,
+      insights: campaignInsightsMap[campaign.id] || {
+        connectionsSent: 0,
+        connectionsAccepted: 0,
+        messagesSent: 0,
+        messagesReceived: 0
+      }
+    }));
+  }, [campaigns, campaignInsightsMap]);
   
   // Calculate total statistics using the enhanced campaigns data
   const totalLeads = campaignsWithInsights.reduce((sum, c) => sum + (c.leads?.length || 0), 0);
@@ -164,6 +155,45 @@ const CampaignsListContent = () => {
       }
     } catch (error) {
       return '';
+    }
+  };
+
+  const queryClient = useQueryClient();
+  const { mutateAsync: updateCampaign, isPending: isUpdating } = useUpdateCampaign();
+  const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+
+  // Add this helper function
+  const handleCampaignStatusChange = async (campaignId: string, newState: CampaignState) => {
+    if (!campaignId) return;
+    
+    setActionInProgress(campaignId);
+    
+    try {
+      await updateCampaign({
+        campaignId,
+        campaignData: { status: newState }
+      });
+      
+      // Refresh campaign data
+      queryClient.invalidateQueries({ queryKey: ['campaigns'] });
+      
+      const actionText = 
+        newState === CampaignState.PAUSED || CampaignState.MANUALPAUSED ? 'paused' : 
+        newState === CampaignState.RUNNING ? 'resumed' : 'stopped';
+        
+      toast({
+        title: 'Success',
+        description: `Campaign ${actionText} successfully`
+      });
+    } catch (error) {
+      console.error('Failed to update campaign status:', error);
+      toast({
+        variant: "destructive",
+        title: 'Action failed',
+        description: 'Could not update campaign status. Please try again.'
+      });
+    } finally {
+      setActionInProgress(null);
     }
   };
 
@@ -467,7 +497,7 @@ const CampaignsListContent = () => {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
-                              <Link to={`/campaigns/${campaign.id}`}>
+                              <Link to={`/campaign/view/${campaign.id}`}>
                                 <DropdownMenuItem className="cursor-pointer">
                                   <Eye className="w-3.5 h-3.5 mr-2" />
                                   <span>View Details</span>
@@ -475,24 +505,38 @@ const CampaignsListContent = () => {
                               </Link>
                               <DropdownMenuItem 
                                 className="cursor-pointer"
+                                disabled={actionInProgress === campaign.id}
                                 onClick={() => {
-                                  // Implement pause campaign logic
-                                  console.log(`Pause campaign: ${campaign.id}`);
-                                  // You would likely call an API here
+                                  const newState = campaign.state === CampaignState.PAUSED 
+                                    ? CampaignState.RUNNING 
+                                    : CampaignState.MANUALPAUSED;
+
+                                
+                                  handleCampaignStatusChange(campaign.id, newState);
+                                  //console.log(`Toggling campaign ${campaign.id} to ${newState}`);
                                 }}
                               >
-                                <Pause className="w-3.5 h-3.5 mr-2" />
-                                <span>Pause Campaign</span>
+                                {actionInProgress === campaign.id ? (
+                                  <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />
+                                ) : campaign.state === CampaignState.PAUSED ? (
+                                  <Play className="w-3.5 h-3.5 mr-2" />
+                                ) : (
+                                  <Pause className="w-3.5 h-3.5 mr-2" />
+                                )}
+                                <span>
+                                  {campaign.state === CampaignState.PAUSED ? 'Resume Campaign' : 'Pause Campaign'}
+                                </span>
                               </DropdownMenuItem>
                               <DropdownMenuItem 
                                 className="cursor-pointer text-red-600 focus:text-red-600"
-                                onClick={() => {
-                                  // Implement stop campaign logic
-                                  console.log(`Stop campaign: ${campaign.id}`);
-                                  // You would likely call an API with confirmation
-                                }}
+                                disabled={actionInProgress === campaign.id}
+                                onClick={() => handleCampaignStatusChange(campaign.id, CampaignState.STOPPED)}
                               >
-                                <StopCircle className="w-3.5 h-3.5 mr-2" />
+                                {actionInProgress === campaign.id ? (
+                                  <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />
+                                ) : (
+                                  <StopCircle className="w-3.5 h-3.5 mr-2" />
+                                )}
                                 <span>Stop Campaign</span>
                               </DropdownMenuItem>
                             </DropdownMenuContent>

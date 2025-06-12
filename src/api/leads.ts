@@ -4,7 +4,7 @@ import { authStore } from "../api/store/authStore"; // Import your auth store
 
 // Adjust these URLs to match your actual backend endpoints
 const MAPPING_SUGGESTIONS_URL = '/leads/mapping-suggestions';
-const PROCESS_LEADS_URL = '/campaigns/process-leads';
+const PROCESS_LEADS_URL = '/leads/process-leads';
 
 // Get mapping suggestions from backend
 export const getMappingSuggestions = async (file: File) => {

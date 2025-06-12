@@ -252,7 +252,13 @@ const getTimezoneOffsetHours = (timezone: string): number => {
 };
 
 const mapCampaignStateToBackendStatus = (state: CampaignState): string => {
+
+  console.log("the state recieved in mapCampaignStateToBackendStatus:", state);
   switch (state) {
+    case CampaignState.MANUALPAUSED:
+      return "manually_paused";
+    case CampaignState.COMPLETED:
+      return "success";
     case CampaignState.STOPPED:
       return "success";
     case CampaignState.PAUSED:
@@ -270,6 +276,8 @@ export const updateCampaign = async (
 ): Promise<GenericApiResponse> => {
   const backendStatus = mapCampaignStateToBackendStatus(campaignData.status as CampaignState);
 
+
+  console.log("Updating Campaign Data:", backendStatus);
   // Create a deep copy of the campaign data
   const updatedCampaignData = {
     ...campaignData,

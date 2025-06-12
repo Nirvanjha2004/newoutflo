@@ -42,6 +42,8 @@ const AccountsContent = () => {
   
   const { data: accounts = [], isLoading, error } = useAccountsQuery();
 
+  console.log("Accounts data:", accounts);
+  // Filter accounts based on search term and status
   const filteredAccounts = accounts.filter(account => {
     const matchesSearch = `${account.firstName} ${account.lastName}`.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || 
@@ -89,7 +91,6 @@ const AccountsContent = () => {
     }
   };
 
-  // Add this function in your AccountsContent component
   // This ensures consistent profile images for the same account
   const getAccountProfileImage = (account: Account) => {
     // Create a hash from the account ID to get a consistent image
@@ -115,18 +116,18 @@ const AccountsContent = () => {
   }
 
   return (
-    <div className="flex-1 bg-white">
+    <div className="flex-1 bg-[#edecfe]/20">
       {/* Header */}
-      <div className="border-b border-gray-200 px-6 py-4">
+      <div className="border-b border-gray-200 px-6 py-4 bg-white">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-xl font-bold text-gray-900">Account Center</h1>
           </div>
           <div className="flex items-center space-x-3">
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-gray-500 hover:text-[#5a41cd]">
               <Settings size={14} />
             </Button>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-gray-500 hover:text-[#5a41cd]">
               <User size={14} />
             </Button>
           </div>
@@ -134,7 +135,7 @@ const AccountsContent = () => {
 
         <div className="mb-4">
           <h2 className="text-2xl font-bold text-gray-900 mb-1">
-            LinkedIn <span className="text-purple-600">Accounts</span>
+            LinkedIn <span className="text-[#5a41cd]">Accounts</span>
           </h2>
           <p className="text-sm text-gray-600">Manage your LinkedIn sending accounts and campaigns</p>
         </div>
@@ -167,14 +168,14 @@ const AccountsContent = () => {
                 placeholder="Search senders"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 w-48 h-8 text-sm"
+                className="pl-9 w-48 h-8 text-sm focus:border-[#5a41cd] focus:ring-[#5a41cd]"
               />
             </div>
             <Select 
               value={statusFilter}
               onValueChange={(value) => setStatusFilter(value as "all" | "connected" | "disconnected")}
             >
-              <SelectTrigger className="w-32 h-8 text-sm">
+              <SelectTrigger className="w-32 h-8 text-sm border-gray-200 focus:border-[#5a41cd]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -185,11 +186,17 @@ const AccountsContent = () => {
             </Select>
           </div>
           <div className="flex items-center space-x-2">
-            <Button variant="outline" size="sm" className="h-8 text-xs">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="h-8 text-xs border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-[#5a41cd]"
+            >
               <Settings size={12} className="mr-1" />
               Purchase seats
             </Button>
-            <Button className="bg-purple-600 hover:bg-purple-700 text-white h-8 text-xs">
+            <Button 
+              className="bg-[#5a41cd] hover:bg-[#5a41cd]/90 text-white h-8 text-xs"
+            >
               <span className="mr-1">+</span>
               Connect account
             </Button>
@@ -199,7 +206,7 @@ const AccountsContent = () => {
 
       {/* Table */}
       <div className="px-6 py-4">
-        <div className="bg-white rounded-lg border border-gray-200">
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
           {/* Table Header */}
           <div className="grid grid-cols-4 gap-4 px-4 py-3 border-b border-gray-200 bg-gray-50">
             <div className="font-medium text-gray-700 text-sm">LinkedIn Account</div>
@@ -216,7 +223,7 @@ const AccountsContent = () => {
               const statusInfo = getStatusInfo(account);
 
               return (
-                <div key={account.id} className="grid grid-cols-4 gap-4 px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                <div key={account.id} className="grid grid-cols-4 gap-4 px-4 py-3 border-b border-gray-100 hover:bg-[#edecfe]/10 transition-colors">
                   <div className="flex items-center space-x-2">
                     <Avatar className="w-8 h-8">
                       <img 
@@ -228,7 +235,7 @@ const AccountsContent = () => {
                           e.currentTarget.style.display = 'none';
                         }}
                       />
-                      <AvatarFallback className="bg-purple-100 text-purple-600 font-semibold text-xs">
+                      <AvatarFallback className="bg-[#5a41cd]/10 text-[#5a41cd] font-semibold text-xs">
                         {initials}
                       </AvatarFallback>
                     </Avatar>
@@ -265,14 +272,14 @@ const AccountsContent = () => {
                         Re-connect
                       </Button>
                     ) : (
-                      <Button variant="outline" size="sm" className="h-7 text-xs">
+                      <Button variant="outline" size="sm" className="h-7 text-xs border-[#5a41cd]/20 text-[#5a41cd] hover:bg-[#5a41cd]/10">
                         <Settings size={10} className="mr-1" />
                         Configure limits
                       </Button>
                     )}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:bg-[#5a41cd]/10 hover:text-[#5a41cd]">
                           <MoreHorizontal size={12} />
                         </Button>
                       </DropdownMenuTrigger>
@@ -325,7 +332,7 @@ const AccountsContent = () => {
             <Button 
               variant="outline" 
               onClick={() => setShowDeleteModal(false)}
-              className="h-9"
+              className="h-9 border-gray-300 hover:bg-gray-50"
             >
               Cancel
             </Button>

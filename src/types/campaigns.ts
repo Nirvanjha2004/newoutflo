@@ -6,10 +6,12 @@ export enum CampaignStepType {
 }
 
 export enum CampaignState {
+  MANUALPAUSED,
   RUNNING,
   PAUSED,
   STOPPED,
   COMPLETED,
+  DRAFT
 }
 
 export type TCampaignConnectionRequest = {
@@ -32,6 +34,9 @@ export type CampaignWorkflow = {
 };
 
 export interface CampaignInsights {
+  connectionsSent: number;
+  connectionsAccepted: number;
+  messagesReceived: number;
   connectionRequestsSent: number;
   connectionRequestsAccepted: number;
   messagesSent: number;
@@ -89,4 +94,5 @@ export type Campaign = {
     endTime: number;
     timezone: string;
   };
+  accountStatuses?: any;
 };

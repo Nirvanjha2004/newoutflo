@@ -12,6 +12,7 @@ import Papa from 'papaparse';
 import { useCampaignStore } from '@/api/store/campaignStore/campaign'; // Import campaign store
 import { nanoid } from 'nanoid'; // For generating unique IDs
 import { getMappingSuggestions, processLeadsWithMapping } from '@/api/leads';
+import { VerificationResultsModal } from '@/components/VerificationResultsModal';
 
 // Update the Lead interface to include more fields
 interface Lead {
@@ -51,6 +52,24 @@ const ListOfLeads = ({ leadData, updateLeads }: ListOfLeadsProps) => {
     // Add these state variables near your other useState declarations
     const [isLoading, setIsLoading] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [isVerifying, setIsVerifying] = useState(false);
+    const [verificationResults, setVerificationResults] = useState<{
+        urlsVerified: {
+            valid: number;
+            invalid: number;
+            invalidUrls: { row: number, url: string }[];
+        };
+        customVariables: {
+            present: number;
+            missing: number;
+            empty: number;
+        };
+        columnCompleteness: Record<string, {
+            missing: number;
+            missingRows: number[];
+        }>;
+        completed: boolean;
+    } | null>(null);
     // Use campaign store
     const { setLeadsFile, setLeadsData } = useCampaignStore();
     // Get store data to check if leads already exist
@@ -72,6 +91,180 @@ const ListOfLeads = ({ leadData, updateLeads }: ListOfLeadsProps) => {
         },
         verifyLeads: false
     });
+
+
+    // Add this function after handleClientSideMapping
+
+    const verifyLeadData = async () => {
+        console.log("Starting lead verification process");
+        console.log("Parsed CSV data sample:", parsedCsvData);
+        console.log("Column mappings:", columnMappings);
+        
+        // Validate that we have data to work with
+        if (!parsedCsvData || parsedCsvData.length === 0) {
+            console.error("No CSV data available for verification");
+            return {
+                urlsVerified: { valid: 0, invalid: 0, invalidUrls: [] },
+                customVariables: { present: 0, missing: 0, empty: 0 },
+                columnCompleteness: {},
+                completed: true,
+                error: "No CSV data to verify"
+            };
+        }
+
+        return new Promise<any>((resolve) => {
+            // Simulate backend API call with timeout
+            setTimeout(() => {
+                try {
+                    // Find URL columns
+                    const urlColumns = columnMappings
+                        .filter(col => col.type === 'linkedin-url')
+                        .map(col => col.columnName);
+
+                    console.log("URL Columns for verification:", urlColumns);
+
+                    // Find custom variable columns (tags in this case)
+                    const tagColumns = columnMappings
+                        .filter(col => col.type === 'tags')
+                        .map(col => col.columnName);
+
+                    console.log("Tag columns for verification:", tagColumns);
+
+                    // Count total rows for calculations
+                    const totalRows = parsedCsvData.length;
+                    console.log("Total rows to verify:", totalRows);
+
+                    // URL verification
+                    const urlVerificationResults = {
+                        valid: 0,
+                        invalid: 0,
+                        invalidUrls: [] as { row: number, url: string }[]
+                    };
+
+                    // Process URLs if we have parsed data and URL columns
+                    if (parsedCsvData.length > 0 && urlColumns.length > 0) {
+                        // Display some sample data for debugging
+                        console.log("Sample row data for URL verification:", 
+                            urlColumns.map(col => ({
+                                column: col,
+                                samples: parsedCsvData.slice(0, 3).map(row => row[col])
+                            }))
+                        );
+                        
+                        // Regex patterns for LinkedIn URLs
+                        const linkedinProfileRegex = /^(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/[\w\-\.]+\/?(?:\?.*)?$/i;
+                        const linkedinCompanyRegex = /^(?:https?:\/\/)?(?:www\.)?linkedin\.com\/company\/[\w\-\.]+\/?(?:\?.*)?$/i;
+
+                        parsedCsvData.forEach((row, rowIndex) => {
+                            urlColumns.forEach(colName => {
+                                const url = row[colName];
+                                
+                                // Skip empty URLs
+                                if (!url || url.trim() === '') {
+                                    return;
+                                }
+                                
+                                // Check if URL matches either LinkedIn profile or company pattern
+                                const isValidProfile = linkedinProfileRegex.test(url);
+                                const isValidCompany = linkedinCompanyRegex.test(url);
+                                const isValid = isValidProfile || isValidCompany;
+                                
+                                if (isValid) {
+                                    urlVerificationResults.valid++;
+                                } else {
+                                    urlVerificationResults.invalid++;
+                                    urlVerificationResults.invalidUrls.push({
+                                        row: rowIndex + 1, // +1 for human-readable row numbers
+                                        url: url
+                                    });
+                                }
+                            });
+                        });
+
+                        console.log("URL verification results:", urlVerificationResults);
+                    } else {
+                        console.log("No URL data to verify - either no parsed data or no URL columns");
+                    }
+
+                    // Custom variables check
+                    const customVarResults = {
+                        present: 0,
+                        missing: 0,
+                        empty: 0
+                    };
+
+                    if (parsedCsvData.length > 0 && tagColumns.length > 0) {
+                        parsedCsvData.forEach(row => {
+                            tagColumns.forEach(colName => {
+                                if (colName in row) {
+                                    if (row[colName] && row[colName].trim() !== '') {
+                                        customVarResults.present++;
+                                    } else {
+                                        customVarResults.empty++;
+                                    }
+                            } else {
+                                customVarResults.missing++;
+                            }
+                        });
+                    });
+                    } else {
+                        // Default values for when no tag columns exist
+                        customVarResults.present = totalRows;
+                    }
+
+                    // Column completeness check
+                    const completenessResults: Record<string, {
+                        missing: number;
+                        missingRows: number[];
+                    }> = {};
+
+                    // Check all mapped columns except those marked as do-not-import
+                    columnMappings.forEach(col => {
+                        if (col.type !== 'do-not-import') {
+                            const missingRows: number[] = [];
+                            let missingCount = 0;
+
+                            parsedCsvData.forEach((row, rowIndex) => {
+                                if (!row[col.columnName] || row[col.columnName].trim() === '') {
+                                    missingCount++;
+                                    if (missingRows.length < 3) { // Limit to first 3 for display
+                                        missingRows.push(rowIndex + 1);
+                                    }
+                                }
+                            });
+
+                            if (missingCount > 0) {
+                                completenessResults[col.columnName] = {
+                                    missing: missingCount,
+                                    missingRows: missingRows
+                                };
+                            }
+                        }
+                    });
+
+                    // Create final verification results
+                    const results = {
+                        urlsVerified: urlVerificationResults,
+                        customVariables: customVarResults,
+                        columnCompleteness: completenessResults,
+                        completed: true
+                    };
+
+                    console.log("Verification complete:", results);
+                    resolve(results);
+                } catch (error) {
+                    console.error("Error during verification:", error);
+                    resolve({
+                        urlsVerified: { valid: 0, invalid: 0, invalidUrls: [] },
+                        customVariables: { present: 0, missing: 0, empty: 0 },
+                        columnCompleteness: {},
+                        completed: true,
+                        error: error instanceof Error ? error.message : "Unknown error during verification"
+                    });
+                }
+            }, 1500);
+        });
+    };
 
     // Column mappings in exact sequence requested
     const [columnMappings, setColumnMappings] = useState<ColumnMapping[]>([{
@@ -240,13 +433,13 @@ const ListOfLeads = ({ leadData, updateLeads }: ListOfLeadsProps) => {
             const response = await getMappingSuggestions(file);
             const suggestedMappings = response.data.mappings;
             const parsedData = response.data.previewData || [];
-
+            console.log("The response data is :", response);
             // Start local parsing for preview if backend didn't provide preview data
             if (!parsedData.length) {
                 Papa.parse(file, {
                     header: true,
                     skipEmptyLines: true,
-                    preview: 5, // Just parse a few rows for preview
+                    // preview: 10, // Just parse a few rows for preview
                     complete: (results) => {
                         setParsedCsvData(results.data as any[]);
                     }
@@ -255,6 +448,8 @@ const ListOfLeads = ({ leadData, updateLeads }: ListOfLeadsProps) => {
                 // Use backend-provided preview data
                 setParsedCsvData(parsedData);
             }
+
+            console.log("The parsed csv data after parsing is:", parsedCsvData);
 
             // Update column mappings with backend suggestions if available
             if (suggestedMappings && suggestedMappings.length > 0) {
@@ -395,6 +590,14 @@ const ListOfLeads = ({ leadData, updateLeads }: ListOfLeadsProps) => {
         });
     };
 
+    // Add after verifyLeadData
+
+    const continueAfterVerification = () => {
+        // Clear verification results and continue with upload
+        setVerificationResults(null);
+        handleUploadAll(); // This will now skip verification
+    };
+
     // Process the data according to column mappings and update the store
     const handleUploadAll = async () => {
         if (!parsedCsvData.length || !columnMappings.length) {
@@ -406,8 +609,30 @@ const ListOfLeads = ({ leadData, updateLeads }: ListOfLeadsProps) => {
             return;
         }
 
+        // Check if verification is requested
+        if (verifySettings.verifyLeads) {
+            setIsVerifying(true);
+
+            try {
+                // Perform verification
+                const results = await verifyLeadData();
+                setVerificationResults(results);
+                setIsVerifying(false);
+                // Modal will be displayed automatically when verificationResults is set
+            } catch (error) {
+                console.error('Error during verification:', error);
+                toast({
+                    variant: "destructive",
+                    title: "Verification failed",
+                    description: error instanceof Error ? error.message : "An unknown error occurred",
+                });
+                setIsVerifying(false);
+            }
+            return; // Exit early - will continue after modal interaction
+        }
+        
+        // Continue with normal upload if verification isn't requested
         try {
-            // Set processing state
             setIsProcessing(true);
 
             // Create a mapping object to send back to backend
@@ -834,6 +1059,33 @@ const ListOfLeads = ({ leadData, updateLeads }: ListOfLeadsProps) => {
                         <span className="text-sm text-yellow-600 bg-yellow-50 px-2 py-1 rounded">⚡ 0.25 / Row</span>
                     </div>
 
+                    {/* Verification Results */}
+                    {verificationResults && (
+                        <VerificationResultsModal
+                            open={!!verificationResults}
+                            onClose={() => setVerificationResults(null)}
+                            onContinue={continueAfterVerification}
+                            results={verificationResults}
+                            totalRows={parsedCsvData.length}
+                        />
+                    )}
+
+                    {/* Verification Loading State */}
+                    {isVerifying && (
+                        <div className="mt-4 flex items-center justify-center p-4 bg-blue-50 text-blue-700 rounded-lg">
+                            <div className="animate-spin mr-3">
+                                <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <div className="font-medium">Verifying {parsedCsvData.length} leads</div>
+                                <div className="text-sm">This may take a moment</div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Results and Upload */}
                     <div className="flex flex-col items-center space-y-4">
                         {isLoading && <div className="flex items-center space-x-2 text-blue-600">
@@ -849,14 +1101,19 @@ const ListOfLeads = ({ leadData, updateLeads }: ListOfLeadsProps) => {
                         <Button
                             onClick={handleUploadAll}
                             className="bg-green-500 hover:bg-green-600 text-white px-8 py-3 text-base font-medium rounded-lg"
-                            disabled={isProcessing}
+                            disabled={isProcessing || isVerifying}
                         >
                             {isProcessing ? (
                                 <div className="flex items-center space-x-2">
                                     <span className="loading loading-spinner loading-xs"></span>
                                     <span>PROCESSING...</span>
                                 </div>
-                            ) : 'UPLOAD ALL'}
+                            ) : isVerifying ? (
+                                <div className="flex items-center space-x-2">
+                                    <span className="loading loading-spinner loading-xs"></span>
+                                    <span>VERIFYING...</span>
+                                </div>
+                            ) : verifySettings.verifyLeads ? 'VERIFY & UPLOAD' : 'UPLOAD ALL'}
                         </Button>
                     </div>
                 </div>
@@ -1023,8 +1280,8 @@ const ListOfLeads = ({ leadData, updateLeads }: ListOfLeadsProps) => {
             </div>
         </div>
 
-    {/* Right Column: Existing Lists */ }
-    {/* <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        {/* Right Column: Existing Lists */}
+        {/* <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-6">Use Previous Lead Lists</h2>
 
             <div className="space-y-4">

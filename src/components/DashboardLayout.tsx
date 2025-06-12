@@ -10,13 +10,13 @@ const DashboardLayout = ({ children, activePage = 'campaigns' }: DashboardLayout
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden ">
       <Sidebar 
         isExpanded={sidebarExpanded} 
         onToggle={setSidebarExpanded}
         activePage={activePage} 
       />
-      <main className={`flex-1 overflow-auto bg-gradient-to-br from-purple-50 via-white to-blue-50`}>
+      <main className={`flex-1 overflow-auto bg-[#edecfe] `}>
         {children}
       </main>
     </div>

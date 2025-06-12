@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Check } from 'lucide-react';
 
@@ -11,9 +10,10 @@ interface CampaignBreadcrumbProps {
   steps: Step[];
   currentStep: number;
   onStepChange: (stepId: number) => void;
+  disabled?: boolean;
 }
 
-const CampaignBreadcrumb = ({ steps, currentStep, onStepChange }: CampaignBreadcrumbProps) => {
+const CampaignBreadcrumb = ({ steps, currentStep, onStepChange, disabled = false }: CampaignBreadcrumbProps) => {
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
       <div className="flex items-center justify-between">
@@ -21,14 +21,15 @@ const CampaignBreadcrumb = ({ steps, currentStep, onStepChange }: CampaignBreadc
           <React.Fragment key={step.id}>
             <div className="flex items-center">
               <button
-                onClick={() => onStepChange(step.id)}
+                onClick={() => !disabled && onStepChange(step.id)}
                 className={`flex items-center justify-center w-8 h-8 rounded-full border-2 transition-all duration-200 ${
                   step.id < currentStep
                     ? 'bg-primary border-primary text-white'
                     : step.id === currentStep
                     ? 'bg-primary border-primary text-white'
                     : 'bg-white border-gray-300 text-gray-500 hover:border-primary hover:text-primary'
-                }`}
+                } ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
+                disabled={disabled}
               >
                 {step.id < currentStep ? (
                   <Check className="w-4 h-4" />
@@ -37,10 +38,10 @@ const CampaignBreadcrumb = ({ steps, currentStep, onStepChange }: CampaignBreadc
                 )}
               </button>
               <span
-                className={`ml-3 text-sm font-medium cursor-pointer transition-colors ${
+                className={`ml-3 text-sm font-medium transition-colors ${
                   step.id <= currentStep ? 'text-primary' : 'text-gray-500'
-                }`}
-                onClick={() => onStepChange(step.id)}
+                } ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
+                onClick={() => !disabled && onStepChange(step.id)}
               >
                 {step.title}
               </span>

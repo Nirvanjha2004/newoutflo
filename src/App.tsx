@@ -11,6 +11,8 @@ import Inbox from "./pages/Inbox";
 import CreateCampaign from "./pages/CreateCampaign";
 import CampaignsList from "./pages/CampaignsList";
 import ComingSoon from "./pages/ComingSoon";
+import CampaignAnalytics from "./pages/CampaignAnalytics";
+import ViewCampaignPage from "./pages/ViewCampaignPage";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +32,11 @@ const App = () => (
           <Route path="/inbox" element={<Inbox />} />
           <Route path="/accounts" element={<Accounts />} />
           <Route path="/campaign" element={<CreateCampaign />} />
+          
+          {/* Campaign routes - Updated for proper view/edit flow */}
+          <Route path="/campaign/view/:id" element={<ViewCampaignPage />} />
+          <Route path="/campaign/edit/:id" element={<CreateCampaign />} />
+          <Route path="/campaign/analytics/:id" element={<CampaignAnalytics />} />
           <Route path="/allcampaigns" element={<CampaignsList />} />
           
           {/* Coming soon pages */}

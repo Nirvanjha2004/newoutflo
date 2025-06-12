@@ -10,6 +10,8 @@ const mapBackendStatusToFrontendState = (status: string): CampaignState => {
     case "success":
       return CampaignState.STOPPED;
     case "paused":
+    case "manually_paused":  // Add handling for manually paused
+    case "auto_paused":      // Also handle potential auto-paused status
       return CampaignState.PAUSED;
     case "completed":
       return CampaignState.COMPLETED;
@@ -74,18 +76,18 @@ export const mapBackendCampaignToFrontend = async (backendCampaign: any): Promis
     id: backendCampaign.id,
     name: backendCampaign.name,
     description: backendCampaign.description ?? "",
-    createdAt: backendCampaign.createdAt,
-    updatedAt: backendCampaign.updatedAt,
-    state: backendCampaign.status as CampaignState, 
-    orgID: backendCampaign.orgID,
-    leads: backendCampaign.leads
-      ? { s3Url: backendCampaign.leads.s3Url ?? "", fileName: backendCampaign.leads.fileName ?? "" }
-      : undefined,
+    createdAt: backendCampaign.createdAtEpoch,
+    updatedAt: backendCampaign.updatedAtEpoch,
+    state: backendCampaign.status as CampaignState,
+    orgID: backendCampaign.orgId,
+    leads: backendCampaign.leads.data,
     senderAccounts: [], // Will be populated below
     accountIDs: backendCampaign.accountIDs?.map((id: string) => id) ?? [],
-    workflow: backendCampaign.workflow ?? undefined,
+    workflow: backendCampaign.configs ?? undefined,
     localOperationalTimes: backendCampaign.localOperationalTimes ?? undefined,
-    accountStatuses: backendCampaign.accountStatuses ?? {}, // Store the complete accountStatuses
+    accountStatuses: backendCampaign.accountStatuses ?? {},
+    leadListId: undefined,
+    operationalTimes: backendCampaign.operationalTimes ?? undefined,
   };
 
   // Process accounts using account information from various sources
@@ -96,7 +98,7 @@ export const mapBackendCampaignToFrontend = async (backendCampaign: any): Promis
           // Check if account exists in accountStatuses first
           if (campaign.accountStatuses && id in campaign.accountStatuses) {
             const status = campaign.accountStatuses[id];
-            
+
             // Use complete info from accountStatuses for both active and deleted accounts
             return {
               id,
@@ -107,7 +109,7 @@ export const mapBackendCampaignToFrontend = async (backendCampaign: any): Promis
               isDeleted: !status.exists || status.status === "deleted"
             };
           }
-          
+
           // Fall back to API fetch if not in accountStatuses
           try {
             const accountResponse = await getAccount(id);
@@ -126,7 +128,7 @@ export const mapBackendCampaignToFrontend = async (backendCampaign: any): Promis
           }
         }),
       );
-      
+
       campaign.senderAccounts = senderAccounts;
       console.log("Sender accounts with deletion status:", senderAccounts);
     } catch (error) {
