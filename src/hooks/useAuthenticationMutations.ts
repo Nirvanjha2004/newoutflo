@@ -11,7 +11,7 @@ export const useUserAccessTokens = () => {
     mutationFn: async ({ domain, username, password }) => await postUserAccessTokens(domain, username, password),
     options: {
       onSuccess: async (res) => {
-        setState({ isAuthenticated: true, accessToken: res.data });
+        setState({ isAuthenticated: true, accessToken: res.data, user: res.user });
       },
     },
   });

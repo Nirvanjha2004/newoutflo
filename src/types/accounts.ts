@@ -21,6 +21,7 @@ export type Account = {
     campaignFailures?: number;
   };
   campaignFailures?: number;
+  profileImageUrl?: string;
 };
 
 export type GetAccountsResponse = {

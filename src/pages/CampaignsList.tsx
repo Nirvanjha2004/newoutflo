@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, TrendingUp, Users, Send, MessageCircle, Loader2, MoreVertical, BarChart3, Pause, StopCircle, Eye, Play } from 'lucide-react';
+import { Plus, TrendingUp, Users, Send, MessageCircle, Loader2, MoreVertical, BarChart3, Pause, StopCircle, Eye, Play, Filter, Badge, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,61 +18,12 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useUpdateCampaign } from '@/hooks/useCampaignMutations';
 import { toast } from "@/components/ui/use-toast";
+import { Input } from '@/components/ui/input';
+import { Search } from 'lucide-react';
 
 const CampaignsListContent = () => {
-  // Use the campaigns API hook
-  const { data: campaigns = [], isLoading, error } = useCampaignsQuery();
-  
-  // Extract campaign IDs for insights fetching
-  const campaignIds = campaigns.map(campaign => campaign.id).filter(Boolean);
-  
-  // Use the insights queries hook
-  const { 
-    data: campaignInsightsMap = {},
-    isLoading: insightsLoading
-  } = useCampaignInsightsQueries(campaignIds);
-  
-  // Merge campaigns with their insights
-  const campaignsWithInsights = React.useMemo(() => {
-    return campaigns.map(campaign => ({
-      ...campaign,
-      insights: campaignInsightsMap[campaign.id] || {
-        connectionsSent: 0,
-        connectionsAccepted: 0,
-        messagesSent: 0,
-        messagesReceived: 0
-      }
-    }));
-  }, [campaigns, campaignInsightsMap]);
-  
-  // Calculate total statistics using the enhanced campaigns data
-  const totalLeads = campaignsWithInsights.reduce((sum, c) => sum + (c.leads?.length || 0), 0);
-  const totalSent = campaignsWithInsights.reduce((sum, c) => {
-    // If we have insights, use them
-    if (c.insights) {
-      return sum + (c.insights.connectionRequestsSent || 0);
-    }
-    return sum;
-  }, 0);
-  
-  const totalAccepted = campaignsWithInsights.reduce((sum, c) => {
-    if (c.insights) {
-      return sum + (c.insights.connectionRequestsAccepted || 0);
-    }
-    return sum;
-  }, 0);
-  
-  const totalReplies = campaignsWithInsights.reduce((sum, c) => {
-    if (c.insights) {
-      return sum + (c.insights.responses || 0);
-    }
-    return sum;
-  }, 0);
 
-  // Count active campaigns
-  const activeCampaigns = campaignsWithInsights.filter(c => c.state === CampaignState.RUNNING).length;
-
-  // Map campaign state to UI status
+    // Map campaign state to UI status
   const getStatusFromState = (state: CampaignState | undefined) => {
     if (state === undefined) return 'Unknown';
     switch (state) {
@@ -88,6 +39,76 @@ const CampaignsListContent = () => {
         return 'Draft';
     }
   };
+  // Add search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
+
+  // Use the campaigns API hook
+  const { data: campaigns = [], isLoading, error } = useCampaignsQuery();
+  
+  // Extract campaign IDs for insights fetching
+  const campaignIds = campaigns.map(campaign => campaign.id).filter(Boolean);
+  
+  // Use the insights queries hook
+  const { 
+    data: campaignInsightsMap = {},
+    isLoading: insightsLoading
+  } = useCampaignInsightsQueries(campaignIds);
+  
+  // Filter campaigns based on search query and merge with insights
+  const filteredCampaignsWithInsights = React.useMemo(() => {
+    // First, filter campaigns by name and status
+    const filteredCampaigns = campaigns.filter(campaign => {
+      // Filter by search query
+      const matchesSearch = campaign.name.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      // Filter by status if any statuses are selected
+      const status = getStatusFromState(campaign.state);
+      const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(status);
+      
+      return matchesSearch && matchesStatus;
+    });
+    
+    // Then merge with insights
+    return filteredCampaigns.map(campaign => ({
+      ...campaign,
+      insights: campaignInsightsMap[campaign.id] || {
+        connectionsSent: 0,
+        connectionsAccepted: 0,
+        messagesSent: 0,
+        messagesReceived: 0
+      }
+    }));
+  }, [campaigns, campaignInsightsMap, searchQuery, selectedStatuses]);
+  
+  // Calculate total statistics using the filtered campaigns data
+  const totalLeads = filteredCampaignsWithInsights.reduce((sum, c) => sum + (c.leads?.length || 0), 0);
+  const totalSent = filteredCampaignsWithInsights.reduce((sum, c) => {
+    // If we have insights, use them
+    if (c.insights) {
+      return sum + (c.insights.connectionRequestsSent || 0);
+    }
+    return sum;
+  }, 0);
+  
+  const totalAccepted = filteredCampaignsWithInsights.reduce((sum, c) => {
+    if (c.insights) {
+      return sum + (c.insights.connectionRequestsAccepted || 0);
+    }
+    return sum;
+  }, 0);
+  
+  const totalReplies = filteredCampaignsWithInsights.reduce((sum, c) => {
+    if (c.insights) {
+      return sum + (c.insights.responses || 0);
+    }
+    return sum;
+  }, 0);
+
+  // Count active campaigns from filtered list
+  const activeCampaigns = filteredCampaignsWithInsights.filter(c => c.state === CampaignState.RUNNING).length;
+
+
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -197,6 +218,18 @@ const CampaignsListContent = () => {
     }
   };
 
+  // Get all available status types for the dropdown
+  const availableStatusTypes = React.useMemo(() => {
+    const statusSet = new Set<string>();
+    
+    campaigns.forEach(campaign => {
+      const status = getStatusFromState(campaign.state);
+      statusSet.add(status);
+    });
+    
+    return Array.from(statusSet).sort();
+  }, [campaigns]);
+
   return (
     <div className="p-8">
       {/* Header */}
@@ -232,7 +265,7 @@ const CampaignsListContent = () => {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-gray-900 mb-1">
-              {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : campaignsWithInsights.length}
+              {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : campaigns.length}
             </div>
             <p className="text-sm text-gray-500">All time</p>
           </CardContent>
@@ -297,7 +330,17 @@ const CampaignsListContent = () => {
       <Card className="border-0 shadow-xl mb-8 overflow-hidden">
         <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 flex flex-row justify-between items-center">
           <CardTitle className="text-xl font-semibold text-gray-900">Campaign Overview</CardTitle>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {/* Add search input */}
+            <div className="relative w-64">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
+                placeholder="Search campaigns..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 h-9 text-sm border-gray-300 focus:border-gray-400 focus:ring-1 focus:ring-gray-400"
+              />
+            </div>
             <Button variant="outline" size="sm" className="text-xs">
               <svg className="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
               Filter
@@ -325,21 +368,40 @@ const CampaignsListContent = () => {
                 {error.message || "An unexpected error occurred"}
               </p>
             </div>
-          ) : campaignsWithInsights.length === 0 ? (
+          ) : filteredCampaignsWithInsights.length === 0 ? (
             <div className="text-center py-16 px-6">
-              <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-primary/20 to-purple-200 rounded-full flex items-center justify-center">
-                <Plus className="w-12 h-12 text-primary" />
-              </div>
-              <h3 className="text-2xl font-semibold text-gray-900 mb-3">Ready to start your first campaign?</h3>
-              <p className="text-gray-600 mb-8 max-w-md mx-auto">
-                Create targeted outreach campaigns and connect with your ideal prospects through personalized messaging.
-              </p>
-              <Link to="/campaign">
-                <Button className="bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700 text-white shadow-lg px-8 py-3">
-                  <Plus className="w-5 h-5 mr-2" />
-                  Create Your First Campaign
-                </Button>
-              </Link>
+              {searchQuery ? (
+                // Show no results message when searching
+                <div>
+                  <div className="w-24 h-24 mx-auto mb-6 bg-gray-100 rounded-full flex items-center justify-center">
+                    <Search className="w-12 h-12 text-gray-400" />
+                  </div>
+                  <h3 className="text-2xl font-semibold text-gray-900 mb-3">No matching campaigns</h3>
+                  <p className="text-gray-600 mb-8 max-w-md mx-auto">
+                    No campaigns found matching "{searchQuery}". Try a different search term.
+                  </p>
+                  <Button onClick={() => setSearchQuery('')} className="bg-primary text-white">
+                    Clear search
+                  </Button>
+                </div>
+              ) : (
+                // Show empty state when no campaigns exist
+                <div>
+                  <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-primary/20 to-purple-200 rounded-full flex items-center justify-center">
+                    <Plus className="w-12 h-12 text-primary" />
+                  </div>
+                  <h3 className="text-2xl font-semibold text-gray-900 mb-3">Ready to start your first campaign?</h3>
+                  <p className="text-gray-600 mb-8 max-w-md mx-auto">
+                    Create targeted outreach campaigns and connect with your ideal prospects through personalized messaging.
+                  </p>
+                  <Link to="/campaign">
+                    <Button className="bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700 text-white shadow-lg px-8 py-3">
+                      <Plus className="w-5 h-5 mr-2" />
+                      Create Your First Campaign
+                    </Button>
+                  </Link>
+                </div>
+              )}
             </div>
           ) : (
             <div className="overflow-hidden">
@@ -352,7 +414,83 @@ const CampaignsListContent = () => {
                         <svg className="w-3.5 h-3.5 ml-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path></svg>
                       </div>
                     </TableHead>
-                    <TableHead className="font-semibold text-gray-700">Status</TableHead>
+                    <TableHead className="font-semibold text-gray-700">
+                      <div className="flex items-center space-x-1">
+                        <span>Status</span>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="p-0 h-5 w-5 ml-1 hover:bg-gray-200 rounded-sm"
+                            >
+                              <Filter className="h-3 w-3" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="w-64 bg-white border border-gray-200 shadow-md rounded-md p-1 max-h-64 overflow-y-auto">
+                            {/* Select All option */}
+                            <div 
+                              className="flex items-center p-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100"
+                              onClick={() => {
+                                if (selectedStatuses.length === availableStatusTypes.length) {
+                                  setSelectedStatuses([]);
+                                } else {
+                                  setSelectedStatuses([...availableStatusTypes]);
+                                }
+                              }}
+                            >
+                              <div className={`w-4 h-4 border rounded flex items-center justify-center mr-2 ${
+                                selectedStatuses.length === availableStatusTypes.length 
+                                  ? "bg-blue-500 border-blue-500" 
+                                  : "border-gray-300"
+                              }`}>
+                                {selectedStatuses.length === availableStatusTypes.length && (
+                                  <Check className="w-3 h-3 text-white" />
+                                )}
+                              </div>
+                              <span className="text-sm font-medium">All Statuses</span>
+                              <div className="ml-auto bg-gray-100 text-gray-600 hover:bg-gray-200">
+                                {availableStatusTypes.length}
+                              </div>
+                            </div>
+                            
+                            {/* Status options */}
+                            {availableStatusTypes.map((status) => {
+                              const isSelected = selectedStatuses.includes(status);
+                              const count = campaigns.filter(campaign => getStatusFromState(campaign.state) === status).length;
+                              const statusColor = getStatusColor(status);
+                              
+                              return (
+                                <div 
+                                  key={status} 
+                                  className="flex items-center p-2 hover:bg-gray-50 cursor-pointer"
+                                  onClick={() => {
+                                    if (isSelected) {
+                                      setSelectedStatuses(selectedStatuses.filter(s => s !== status));
+                                    } else {
+                                      setSelectedStatuses([...selectedStatuses, status]);
+                                    }
+                                  }}
+                                >
+                                  <div className={`w-4 h-4 border rounded flex items-center justify-center mr-2 ${
+                                    isSelected ? "bg-blue-500 border-blue-500" : "border-gray-300"
+                                  }`}>
+                                    {isSelected && <Check className="w-3 h-3 text-white" />}
+                                  </div>
+                                  <div className="flex items-center">
+                                    <div className={`w-2 h-2 rounded-full mr-2 ${statusColor.split(' ')[1].replace('100', '400')}`}></div>
+                                    <span className="text-sm">{status}</span>
+                                  </div>
+                                  <div className="ml-auto bg-gray-100 text-gray-600 hover:bg-gray-200">
+                                    {count}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </TableHead>
                     <TableHead className="font-semibold text-gray-700 cursor-pointer hover:text-primary transition-colors">
                       <div className="flex items-center">
                         Leads
@@ -367,7 +505,7 @@ const CampaignsListContent = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {campaignsWithInsights.map((campaign) => (
+                  {filteredCampaignsWithInsights.map((campaign) => (
                     <TableRow key={campaign.id} className="group border-b hover:bg-gray-50/80 transition-colors duration-150">
                       <TableCell className="font-semibold text-gray-900 py-4">
                         <div className="flex items-center">

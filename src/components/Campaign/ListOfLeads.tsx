@@ -593,9 +593,65 @@ const ListOfLeads = ({ leadData, updateLeads }: ListOfLeadsProps) => {
     // Add after verifyLeadData
 
     const continueAfterVerification = () => {
-        // Clear verification results and continue with upload
-        setVerificationResults(null);
-        handleUploadAll(); // This will now skip verification
+        if (!parsedCsvData.length || !verificationResults) {
+            toast({
+                variant: "destructive",
+                title: "No data to process",
+                description: "Verification results are missing.",
+            });
+            return;
+        }
+
+        try {
+            // Find URL column names
+            const urlColumnNames = columnMappings
+                .filter(col => col.type === 'linkedin-url')
+                .map(col => col.columnName);
+
+            if (!urlColumnNames.length) {
+                // If no URL columns, continue with all data
+                setVerificationResults(null);
+                handleUploadAll();
+                return;
+            }
+
+            // Get the list of row indexes with invalid URLs
+            const invalidRowIndexes = new Set(
+                verificationResults.urlsVerified.invalidUrls.map(item => item.row - 1) // -1 because rows are 1-indexed in results
+            );
+
+            console.log(`Found ${invalidRowIndexes.size} invalid URLs out of ${parsedCsvData.length} rows`);
+
+            // Filter out rows with invalid LinkedIn URLs
+            const filteredData = parsedCsvData.filter((row, index) => !invalidRowIndexes.has(index));
+
+            console.log(`After filtering: ${filteredData.length} valid leads remaining`);
+
+            // Update the parsedCsvData with only valid entries
+            setParsedCsvData(filteredData);
+
+            // Update validation counts
+            setValidRowsCount(filteredData.length);
+
+            // Show toast with filtering results
+            toast({
+                title: "Leads Filtered",
+                description: `Removed ${invalidRowIndexes.size} leads with invalid LinkedIn URLs. Continuing with ${filteredData.length} valid leads.`,
+            });
+
+            // Clear verification results
+            setVerificationResults(null);
+
+            // Continue with upload process
+            handleUploadAll();
+        } catch (error) {
+            console.error('Error filtering invalid URLs:', error);
+            toast({
+                variant: "destructive",
+                title: "Error filtering data",
+                description: error instanceof Error ? error.message : "An unknown error occurred",
+            });
+        }
     };
 
     // Process the data according to column mappings and update the store
@@ -641,11 +697,17 @@ const ListOfLeads = ({ leadData, updateLeads }: ListOfLeadsProps) => {
                     columnName: col.columnName,
                     mappedType: col.type
                 })),
-                fileName: uploadedFile?.name
+                fileName: uploadedFile?.name,
+                // Add filtering information
+                filtering: {
+                    urlsFiltered: verifySettings.verifyLeads,
+                    originalRowCount: uploadedFile?.processed ? validRowsCount : parsedCsvData.length,
+                    filteredRowCount: parsedCsvData.length
+                }
             };
 
             // Send the file with final mappings to backend for processing
-            const response = await processLeadsWithMapping(uploadedFile?.fileObject as File, mappingInfo);
+            const response = await processLeadsWithMapping(uploadedFile?.fileObject as File, mappingInfo, parsedCsvData);
 
 
             console.log('Backend response:', response.data.leadListId);

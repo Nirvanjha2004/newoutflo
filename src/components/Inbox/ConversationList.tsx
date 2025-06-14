@@ -9,31 +9,55 @@ import { useMemo } from "react";
 interface ConversationListProps {
   searchTerm: string;
   activeFilter: string;
+  isPendingFilter: boolean;
+  isMyMessagesFilter: boolean; // Add this new prop
   selectedConversation: Conversation | null;
   onSelectConversation: (conversation: Conversation) => void;
 }
 
-export const ConversationList = ({ 
-  searchTerm, 
-  activeFilter, 
-  selectedConversation, 
-  onSelectConversation 
+export const ConversationList = ({
+  searchTerm,
+  activeFilter,
+  isPendingFilter,
+  isMyMessagesFilter, // Add this new prop
+  selectedConversation,
+  onSelectConversation
 }: ConversationListProps) => {
   // Fetch conversations based on search term
   const { data: conversations = [], isLoading: loading, error } = useConversationsQuery(
-    false, 
+    isPendingFilter,
     searchTerm
   );
-  
+
   // Fetch accounts to identify which account is primary
   const { data: accounts = [] } = useAccountsQuery();
 
   // Filter conversations based on active filter
-  const filteredConversations = conversations.filter(conv => {
-    if (activeFilter === "Unread") return true; // Add unread logic when available
-    if (activeFilter === "Favorite") return true; // Add favorite logic when available
-    return true;
-  });
+  const filteredConversations = useMemo(() => {
+    return conversations.filter(conversation => {
+      // Find the primary account URN (your user's account)
+      const primaryAccountUrn = accounts.length > 0 ? accounts[0].urn : null;
+
+      // Determine if the last message was sent by your user or someone else
+      const lastMessageSentByUser = conversation.lastMessage &&
+        conversation.lastMessage.senderUrn === primaryAccountUrn;
+
+      // If pending filter is on, only show conversations where the last message is NOT from the user
+      if (isPendingFilter && lastMessageSentByUser) {
+        return false;
+      }
+
+      // If my messages filter is on, only show conversations where the last message IS from the user
+      if (isMyMessagesFilter && !lastMessageSentByUser) {
+        return false;
+      }
+
+      // Make sure both filters can't be active at the same time
+      // (handled in parent component)
+
+      return true;
+    });
+  }, [searchTerm, activeFilter, isPendingFilter, isMyMessagesFilter, conversations, accounts]);
 
   if (loading) {
     return (
@@ -59,9 +83,9 @@ export const ConversationList = ({
         </div>
         <h3 className="text-xl font-bold text-gray-900 mb-2">No results found</h3>
         <p className="text-gray-500 mb-6">No conversations match your search criteria</p>
-        <Button 
-          variant="default" 
-          onClick={() => {/* Clear search logic */}}
+        <Button
+          variant="default"
+          onClick={() => {/* Clear search logic */ }}
           className="bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
         >
           Clear search
@@ -75,34 +99,34 @@ export const ConversationList = ({
       {filteredConversations.map((conversation) => {
         // Find the account URN that belongs to our user
         const primaryAccountUrn = accounts.length > 0 ? accounts[0].urn : null;
-        
+
         // Find the contact account (the one that's not our primary account)
         const contactAccount = conversation.accounts.find(acc => acc.urn !== primaryAccountUrn) || conversation.accounts[0];
-        
+
         // Get names for display
         const contactName = `${contactAccount.firstName || ''} ${contactAccount.lastName || ''}`.trim();
         const contactInitials = `${(contactAccount.firstName?.[0] || '')}${(contactAccount.lastName?.[0] || '')}`.toUpperCase();
-        
+
         // Get primary account for sender display (our user's name)
         const primaryAccount = accounts.find(acc => acc.urn === primaryAccountUrn) || {
           firstName: "Your",
           lastName: "Account"
         };
         const primaryAccountName = `${primaryAccount.firstName || ''} ${primaryAccount.lastName || ''}`.trim();
-        
+
         // Determine if the last message was sent by our user
-        const lastMessageSentByUser = conversation.lastMessage && 
+        const lastMessageSentByUser = conversation.lastMessage &&
           conversation.lastMessage.senderURN === primaryAccountUrn;
-        
+
         // Format date properly
         const lastActivityTime = conversation.lastActivityAtEpoch || conversation.lastActivityAt;
         let formattedDate = "Invalid Date";
-        
+
         if (lastActivityTime) {
           // Convert to number if it's a string
           const timestamp = typeof lastActivityTime === 'string' ? parseInt(lastActivityTime) : lastActivityTime;
           const date = new Date(timestamp);
-          
+
           // Check if date is today
           const isToday = new Date().toDateString() === date.toDateString();
           if (isToday) {
@@ -111,19 +135,18 @@ export const ConversationList = ({
             formattedDate = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
           }
         }
-        
+
         // Determine unread status (just placeholder logic for now)
         const hasUnread = conversation.id.charCodeAt(0) % 3 === 0; // Just for demonstration
-        
+
         return (
           <div
             key={conversation.id}
             onClick={() => onSelectConversation(conversation)}
-            className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-blue-50 transition-all duration-200 ${
-              selectedConversation?.id === conversation.id 
-                ? 'bg-blue-50 border-l-4 border-l-blue-500 shadow-sm' 
-                : 'hover:shadow-sm'
-            }`}
+            className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-blue-50 transition-all duration-200 ${selectedConversation?.id === conversation.id
+              ? 'bg-blue-50 border-l-4 border-l-blue-500 shadow-sm'
+              : 'hover:shadow-sm'
+              }`}
           >
             <div className="flex items-start space-x-3">
               <Avatar className="w-12 h-12 ring-2 ring-gray-100">
@@ -131,7 +154,7 @@ export const ConversationList = ({
                   {contactInitials || '??'}
                 </AvatarFallback>
               </Avatar>
-              
+
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="font-semibold text-gray-900 truncate text-sm">{contactName || 'Unknown Contact'}</h4>
@@ -141,11 +164,11 @@ export const ConversationList = ({
                     </Badge>
                   )}
                 </div>
-                
+
                 <p className="text-xs text-gray-500 truncate mb-2 font-medium">
                   LinkedIn Connection
                 </p>
-                
+
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-sm text-gray-700 truncate flex-1 font-medium">
                     {conversation.lastMessage?.text || "No messages"}
@@ -154,7 +177,7 @@ export const ConversationList = ({
                     {formattedDate}
                   </span>
                 </div>
-                
+
                 <div className="flex items-center">
                   <Avatar className="w-4 h-4 mr-2">
                     <AvatarFallback className="bg-blue-500 text-white text-xs">

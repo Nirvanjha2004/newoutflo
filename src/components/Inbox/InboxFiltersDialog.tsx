@@ -17,7 +17,7 @@ export const InboxFiltersDialog = ({ isOpen, onClose }: InboxFiltersDialogProps)
 
   const handleApplyFilters = () => {
     // Apply filter logic here
-    onClose();
+    onClose()
   };
 
   const handleClearFilters = () => {

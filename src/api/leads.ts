@@ -26,25 +26,27 @@ export const getMappingSuggestions = async (file: File) => {
   }
 };
 
-// Process leads with final mapping
-export const processLeadsWithMapping = async (file: File, mappingInfo: any) => {
+// Update your processLeadsWithMapping function to accept the filteredData parameter
+export const processLeadsWithMapping = async (
+  file: File, 
+  mappingInfo: any,
+  filteredData?: any[] // Optional filtered data parameter
+) => {
   const formData = new FormData();
   formData.append("csv_file", file);
   formData.append("mappings", JSON.stringify(mappingInfo));
   
-  try {
-    // Send auth token but don't use checkUnauthorized
-    return await api.post(PROCESS_LEADS_URL, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-        'Authorization': `Bearer ${authStore.getState().accessToken}`
-      }
-    });
-  } catch (error) {
-    // Log error but don't logout user
-    console.error("Error processing leads:", error);
-    throw error;
+  // If we have filtered data, send it as JSON
+  if (filteredData && filteredData.length > 0) {
+    formData.append('filteredData', JSON.stringify(filteredData));
   }
+
+  return api.post(PROCESS_LEADS_URL, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+      'Authorization': `Bearer ${authStore.getState().accessToken}`
+    }
+  });
 };
 
 // Handler function for serverless API
@@ -94,7 +96,10 @@ export async function handler(req, res) {
       const file = req.files.csv_file;
       const mappingInfo = JSON.parse(req.body.mappings);
       
-      const response = await processLeadsWithMapping(file, mappingInfo);
+      // Check for optional filteredData in the request body
+      const filteredData = req.body.filteredData ? JSON.parse(req.body.filteredData) : undefined;
+      
+      const response = await processLeadsWithMapping(file, mappingInfo, filteredData);
       return res.status(200).json(response.data);
     } else {
       return res.status(404).json({ error: "Endpoint not found" });

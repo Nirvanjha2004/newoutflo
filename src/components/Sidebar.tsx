@@ -21,6 +21,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAuthStore } from "@/api/store/authStore";
+import { useMemo } from "react";
 
 interface SidebarProps {
   isExpanded: boolean;
@@ -39,17 +42,49 @@ export const Sidebar = ({ isExpanded, onToggle, activePage = 'campaigns' }: Side
     { icon: Settings, path: "/settings", name: "Settings", id: "settings" },
   ];
 
-  // Mock user data - replace with actual user data from your auth context/store
-  const user = {
-    name: "Acme Inc.",
-    image: "/profileImages/user1.png",
-    initials: "AI"
-  };
+  // Get user data from auth store
+  const { user, reset: resetAuthState } = useAuthStore();
+  
+  console.log("Sidebar user data:", user);
+  // Generate user display data with fallbacks
+  const userData = useMemo(() => {
+    // If no user data, show placeholder
+    if (!user) {
+      return {
+        name: "Guest User",
+        image: null,
+        initials: "GU",
+        role: "Guest"
+      };
+    }
+    
+    // Extract name (could be company name or user's name)
+    const displayName = user.companyName || 
+                       `${user.name || ''} ${user.lastName || ''}`.trim() || 
+                       user.email?.split('@')[0] || 
+                       "User";
+    
+    // Generate initials from name
+    const initials = displayName
+      .split(' ')
+      .map(part => part[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase();
+    
+    return {
+      name: displayName,
+      image: user.profilePicture || user.avatar || user.profileImageUrl || null,
+      initials: initials || "U",
+      role: user.username || "User"
+    };
+  }, [user]);
+
+  const queryClient = useQueryClient();
 
   const handleLogout = () => {
-    // Implement your logout logic here
-    console.log("Logging out...");
-    // Redirect to login page or clear auth tokens
+    resetAuthState();
+    queryClient.clear();
   };
 
   // Fix the sidebar structure for better collapsed appearance
@@ -129,17 +164,17 @@ export const Sidebar = ({ isExpanded, onToggle, activePage = 'campaigns' }: Side
           isExpanded ? 'justify-between px-3' : 'justify-center'
         } p-3 bg-white/10 rounded-xl transition-all duration-300 text-white`}>
           <Avatar className="w-8 h-8 border-2 border-purple-400">
-            <AvatarImage src={user.image} alt={user.name} />
+            <AvatarImage src={userData.image || ""} alt={userData.name} />
             <AvatarFallback className="bg-purple-600 text-white text-xs">
-              {user.initials}
+              {userData.initials}
             </AvatarFallback>
           </Avatar>
           
           {isExpanded && (
             <>
               <div className="ml-3 truncate flex-1">
-                <p className="text-sm font-medium truncate">{user.name}</p>
-                <p className="text-xs text-white/70">Admin</p>
+                <p className="text-sm font-medium truncate">{userData.name}</p>
+                <p className="text-xs text-white/70">{userData.role}</p>
               </div>
               
               <DropdownMenu>
@@ -171,7 +206,7 @@ export const Sidebar = ({ isExpanded, onToggle, activePage = 'campaigns' }: Side
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48" sideOffset={5}>
                 <DropdownMenuItem disabled className="opacity-70">
-                  {user.name}
+                  {userData.name}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="cursor-pointer flex items-center text-red-600"

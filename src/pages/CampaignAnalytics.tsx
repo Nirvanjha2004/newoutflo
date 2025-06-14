@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Users, Send, MessageCircle, CheckCircle, Search, Filter, AlertCircle, ChevronDown } from 'lucide-react';
+import { Users, Send, MessageCircle, CheckCircle, RefreshCw, AlertCircle, ChevronDown, Filter, Search, Check } from 'lucide-react';
 // Add this import for the dropdown components
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,9 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AsyncButton } from "@/components/async-button";
+import { refreshCampaignLeads } from "@/api/campaigns";
+import { useAccountsQuery } from "@/hooks/useAccountQueries";
 
 // Add this enum at the top of your file
 export enum LeadStatus {
@@ -38,7 +41,7 @@ interface BackendLead {
   url?: string;
   urn?: string;
   firstName?: string;
-  lastName?: string; 
+  lastName?: string;
   status?: string;
   lastActivity?: number;
   accountId?: string;
@@ -60,6 +63,7 @@ interface CampaignAnalyticsProps {
   leadData?: BackendLead[] | any;
   updateLeads?: (leads: any) => void;
   viewMode?: boolean;
+  initialFilterStatus?: string; // Add this prop
   campaignInsights?: {
     connectionRequestsSent: number,
     connectionRequestsAccepted: number,
@@ -68,25 +72,81 @@ interface CampaignAnalyticsProps {
   };
 }
 
-const CampaignAnalytics = ({ 
+const CampaignAnalytics = ({
   campaignInsights,
-  leadData = [], 
-  updateLeads = () => {}, 
-  viewMode = false 
+  leadData = [],
+  updateLeads = () => { },
+  viewMode = false,
+  initialFilterStatus = 'all'
 }: CampaignAnalyticsProps) => {
+  // Existing state variables
   const { id } = useParams();
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [assignedAccountFilter, setAssignedAccountFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState(initialFilterStatus);
   const [showDataWarning, setShowDataWarning] = useState(false);
-  
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Add this to fetch accounts data
+  const { data: accounts = [], isLoading: accountsLoading } = useAccountsQuery();
+
+  // Create a mapping of account IDs to account names
+  const accountNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+
+    if (accounts && accounts.length) {
+      accounts.forEach(account => {
+        if (account?.id) {
+          const firstName = account.firstName || '';
+          const lastName = account.lastName || '';
+          const displayName = `${firstName} ${lastName}`.trim() || account.email?.split('@')[0] || 'Unknown';
+          map.set(account.id, displayName);
+        }
+      });
+    }
+
+    return map;
+  }, [accounts]);
+
+  // Function to get account name from ID
+  const getAccountName = (accountId: string | undefined) => {
+    if (!accountId) return 'Unassigned';
+    return accountNameMap.get(accountId) || accountId;
+  };
+
+  // Add the refreshLeads function
+  const refreshLeads = async () => {
+    if (!id) return;
+
+    try {
+      const result = await refreshCampaignLeads(id);
+
+      // Re-fetch campaign data - this would need to be implemented at the parent level
+      // and passed down as a prop if needed
+      if (typeof updateLeads === 'function') {
+        updateLeads(result?.data?.leads || []);
+      }
+
+      return result;
+    } catch (error) {
+      console.error("Failed to refresh leads:", error);
+      throw error;
+    }
+  };
+
+  // Add this useEffect to update the statusFilter when initialFilterStatus changes
+  useEffect(() => {
+    if (initialFilterStatus) {
+      console.log("Filter status updated from prop:", initialFilterStatus);
+      setStatusFilter(initialFilterStatus);
+    }
+  }, [initialFilterStatus]);
   // Add this state for the status dropdown
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
 
   // Updated mapLeadStatus function
   const mapLeadStatus = (status?: string): string => {
     if (!status) return 'pending';
-    
+
     // First, handle exact matches from the enum
     switch (status) {
       case LeadStatus.CONNECTION_EXISTS:
@@ -123,10 +183,10 @@ const CampaignAnalytics = ({
       default:
         break;
     }
-    
+
     // If no exact match, try to match based on content
     const statusLower = status.toLowerCase();
-    
+
     if (statusLower.includes('already connected')) return 'alreadyConnected';
     if (statusLower.includes('connection request sent') || statusLower.includes('connection sent')) return 'connectionSent';
     if (statusLower.includes('connection accepted')) return 'connected';
@@ -140,7 +200,7 @@ const CampaignAnalytics = ({
     if (statusLower.includes('retry')) return 'retrying';
     if (statusLower.includes('fail')) return 'failed';
     if (statusLower.includes('inactive')) return 'inactive';
-    
+
     // Default fallback
     return 'processing';
   };
@@ -210,7 +270,7 @@ const CampaignAnalytics = ({
   // Map backend leads to frontend format - WITHOUT FIELD MAPPINGS
   const allLeads = useMemo(() => {
     console.log("The leadData is", leadData);
-    
+
     // Return sample data if no real data exists
     if (!leadData || (Array.isArray(leadData) && leadData.length === 0)) {
       return getSampleLeads();
@@ -220,12 +280,8 @@ const CampaignAnalytics = ({
       // Backend data is already an array - no need to check for leadData.data
       const mappedLeads = Array.isArray(leadData) ? leadData : [];
       console.log("Mapped Leads:", mappedLeads);
-      
+
       return mappedLeads.map((lead: BackendLead, index: number) => {
-        // DIRECT USE: Don't process url/firstName/lastName/accountId
-        // Just use the raw values directly from the backend
-        const url = lead.url || lead.firstName || '';
-        
         // Format timestamp to readable date if available (keeping this for readability)
         let formattedDate = 'N/A';
         if (lead.lastActivity) {
@@ -237,17 +293,21 @@ const CampaignAnalytics = ({
             formattedDate = 'Invalid date';
           }
         }
-        
+
         // Keep status mapping since this is explicitly not included in removal request
         let mappedStatus = mapLeadStatus(lead.status);
-        
+
+        // Get the real account name instead of just the ID
+        const accountName = getAccountName(lead.accountId);
+
         return {
           id: index,
-          name: url, // Just use url as name directly
+          name: lead.url || lead.firstName || '',
           status: mappedStatus,
           lastActivity: formattedDate,
-          assignedAccount: lead.accountId || 'Unassigned', // Use raw accountId
-          url: url, // No processing
+          assignedAccount: accountName,
+          accountId: lead.accountId, // Keep the original accountId for filtering
+          url: lead.url,
           rawStatus: lead.status
         };
       });
@@ -256,7 +316,7 @@ const CampaignAnalytics = ({
       setShowDataWarning(true);
       return getSampleLeads();
     }
-  }, [leadData]);
+  }, [leadData, accountNameMap]);
 
   // Analytics data calculated from actual leads
   const analytics = useMemo(() => [
@@ -290,41 +350,34 @@ const CampaignAnalytics = ({
     }
   ], [allLeads]);
 
-  // Get unique assigned accounts for dropdown
+  // Get unique assigned accounts for dropdown with real names
   const assignedAccounts = useMemo(() => {
     return Array.from(new Set(allLeads.map(lead => lead.assignedAccount))).sort();
   }, [allLeads]);
 
-  // Filter and sort leads
-  const filteredLeads = useMemo(() => {
+  // Add this after your existing state variables
+  const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
 
-    console.log('All leads are', allLeads)
+  // Update the filteredLeads useMemo to filter by multiple accounts
+  const filteredLeads = useMemo(() => {
     let filtered = allLeads.filter(lead => {
       // Search filter - check both name and URL
-      const matchesSearch = 
-        lead.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      const matchesSearch =
+        (lead.name && lead.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (lead.url && lead.url.toLowerCase().includes(searchQuery.toLowerCase()));
-      
+
       // Status filter
       const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
-      
-      // Assigned account filter
-      const matchesAssignedAccount = assignedAccountFilter === 'all' || lead.assignedAccount === assignedAccountFilter;
-      
-      return matchesSearch && matchesStatus && matchesAssignedAccount;
+
+      // Multiple accounts filter - match by account display name
+      const matchesAccounts = selectedAccounts.length === 0 ||
+        selectedAccounts.includes(lead.assignedAccount);
+
+      return matchesSearch && matchesStatus && matchesAccounts;
     });
 
-    // Sort by assigned account (selected account first) then by name
-    if (assignedAccountFilter !== 'all') {
-      filtered.sort((a, b) => {
-        if (a.assignedAccount === assignedAccountFilter && b.assignedAccount !== assignedAccountFilter) return -1;
-        if (a.assignedAccount !== assignedAccountFilter && b.assignedAccount === assignedAccountFilter) return 1;
-        return a.name.localeCompare(b.name);
-      });
-    }
-
     return filtered;
-  }, [allLeads, searchQuery, statusFilter, assignedAccountFilter]);
+  }, [allLeads, searchQuery, statusFilter, selectedAccounts]);
 
 
   console.log("Filtered Leads:", filteredLeads);
@@ -361,11 +414,42 @@ const CampaignAnalytics = ({
         return { label: 'Pending', className: 'bg-purple-100 text-purple-700 border-purple-200' };
       default:
         // For any unmapped status, capitalize first letter and use gray styling
-        return { 
-          label: status.charAt(0).toUpperCase() + status.slice(1), 
-          className: 'bg-gray-100 text-gray-700 border-gray-200' 
+        return {
+          label: status.charAt(0).toUpperCase() + status.slice(1),
+          className: 'bg-gray-100 text-gray-700 border-gray-200'
         };
     }
+  };
+
+  const shortenLinkedInUrl = (url: string | undefined): string => {
+    if (!url) return '';
+
+    // For LinkedIn profile URLs
+    if (url.includes('linkedin.com/in/')) {
+      // Extract username part
+      const username = url.split('/in/')[1]?.split('/')[0] || '';
+      if (username.length > 10) {
+        return `linkedin.com/in/${username.substring(0, 8)}...`;
+      } else {
+        return `linkedin.com/in/${username}`;
+      }
+    }
+
+    // For other LinkedIn URLs
+    if (url.includes('linkedin.com')) {
+      const parts = url.replace('https://', '').replace('http://', '').replace('www.', '').split('/');
+      if (parts.length > 2 && parts[1].length > 10) {
+        return `${parts[0]}/${parts[1].substring(0, 8)}...`;
+      }
+      return url.replace('https://www.', '').replace('http://www.', '').substring(0, 25) + '...';
+    }
+
+    // For non-LinkedIn URLs
+    if (url.length > 30) {
+      return url.substring(0, 27) + '...';
+    }
+
+    return url;
   };
 
   // Updated getStatusCounts function
@@ -398,19 +482,19 @@ const CampaignAnalytics = ({
       connectionSent: 'Connection Sent',
       alreadyConnected: 'Already Connected',
       connected: 'Connected',
-    //   connectionReceived: 'Connection Received',
+      //   connectionReceived: 'Connection Received',
       invitationSent: 'Invitation Sent',
       followUp: 'Follow-Up Needed',
       success: 'Successfully Engaged',
-    //   paused: 'Paused',
-    //   processing: 'Processing',
+      //   paused: 'Paused',
+      //   processing: 'Processing',
       retrying: 'Retrying',
       failed: 'Failed',
       active: 'Lead Active',
-    //   inactive: 'Lead Inactive',
-    //   pending: 'Pending'
+      //   inactive: 'Lead Inactive',
+      //   pending: 'Pending'
     };
-    
+
     return Object.entries(statusMap).map(([key, label]) => ({
       value: key,
       label,
@@ -420,7 +504,7 @@ const CampaignAnalytics = ({
 
   return (
     <div className="space-y-6">
-      {/* Data Warning for problematic backend data */}
+      {/* Data Warning */}
       {showDataWarning && (
         <Alert className="bg-amber-50 border-amber-200">
           <AlertCircle className="h-4 w-4 text-amber-600 mr-2" />
@@ -430,31 +514,7 @@ const CampaignAnalytics = ({
         </Alert>
       )}
 
-      {/* Analytics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {analytics.map((metric, index) => (
-          <Card key={index} className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-gray-600">
-                  {metric.title}
-                </CardTitle>
-                <div className={`p-2 rounded-lg ${metric.bgColor}`}>
-                  <metric.icon className={`w-5 h-5 ${metric.iconColor}`} />
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="text-2xl font-bold text-gray-900 mb-1">
-                {metric.value.toLocaleString()}
-              </div>
-              <p className="text-xs text-gray-500">Total count</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Leads Table */}
+      {/* Leads Table with Refresh Button */}
       <Card className="bg-white border border-gray-200 shadow-sm">
         <CardHeader className="bg-white border-b border-gray-100 py-4">
           <div className="flex items-center justify-between">
@@ -464,8 +524,23 @@ const CampaignAnalytics = ({
                 {viewMode ? 'View of leads in this campaign' : 'Detailed view of all leads in this campaign'}
               </p>
             </div>
-            <div className="text-sm text-gray-500 bg-gray-50 px-3 py-1.5 rounded-lg border">
-              {filteredLeads.length} of {allLeads.length} Leads
+            <div className="flex items-center gap-3">
+              <div className="text-sm text-gray-500 bg-gray-50 px-3 py-1.5 rounded-lg border">
+                {filteredLeads.length} of {allLeads.length} Leads
+              </div>
+
+              {/* Add AsyncButton for refreshing leads */}
+              <AsyncButton
+                onClick={refreshLeads}
+                label="Refresh Leads"
+                loadingLabel="Refreshing..."
+                successMessage="Leads refreshed successfully"
+                errorMessage="Failed to refresh leads"
+                variant="outline"
+                size="sm"
+                icon={<RefreshCw className="h-4 w-4 mr-2" />}
+                className="text-sm"
+              />
             </div>
           </div>
         </CardHeader>
@@ -510,21 +585,193 @@ const CampaignAnalytics = ({
                 </div>
 
                 {/* Assigned Account Filter */}
-                <Select value={assignedAccountFilter} onValueChange={setAssignedAccountFilter}>
-                  <SelectTrigger className="w-56 h-9 border-gray-300 focus:border-gray-400 focus:ring-1 focus:ring-gray-400">
-                    <SelectValue placeholder="Filter by assigned account" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white border border-gray-200 shadow-lg rounded-lg z-50">
-                    <SelectItem value="all">All Assigned Accounts</SelectItem>
-                    {assignedAccounts.map((account) => (
-                      <SelectItem key={account} value={account}>
-                        {account} ({allLeads.filter(lead => lead.assignedAccount === account).length})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {/* Sender Accounts Multi-Select Filter */}
+                <div className="flex items-center space-x-2">
+                  <Users className="w-4 h-4 text-gray-500" />
+                  <div className="relative">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="h-9 flex items-center justify-between gap-1 min-w-[13rem] px-3"
+                        >
+                          <span className="text-sm">
+                            {selectedAccounts.length === 0
+                              ? "Filter by accounts"
+                              : `${selectedAccounts.length} account${selectedAccounts.length > 1 ? 's' : ''}`
+                            }
+                          </span>
+                          <ChevronDown className="h-4 w-4 opacity-50" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="start"
+                        className="w-[280px] bg-white border border-gray-200 shadow-lg rounded-lg p-1 max-h-[300px] overflow-y-auto"
+                      >
+                        {/* Show loading state */}
+                        {accountsLoading ? (
+                          <div className="p-2 text-center text-sm text-gray-500">
+                            <div className="flex items-center justify-center my-2">
+                              <div className="w-4 h-4 border-2 border-t-blue-500 border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"></div>
+                              <span className="ml-2">Loading accounts...</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            {/* Search input for accounts */}
+                            <div className="p-2 border-b border-gray-100">
+                              <div className="relative">
+                                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                <Input
+                                  placeholder="Search accounts..."
+                                  className="pl-8 h-8 text-sm"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Select all option */}
+                            <div
+                              className="flex items-center p-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100"
+                              onClick={() => {
+                                if (selectedAccounts.length === assignedAccounts.length) {
+                                  setSelectedAccounts([]);
+                                } else {
+                                  setSelectedAccounts([...assignedAccounts]);
+                                }
+                              }}
+                            >
+                              <div className={`w-4 h-4 border rounded flex items-center justify-center mr-2 ${selectedAccounts.length === assignedAccounts.length
+                                  ? "bg-blue-500 border-blue-500"
+                                  : "border-gray-300"
+                                }`}>
+                                {selectedAccounts.length === assignedAccounts.length && (
+                                  <Check className="w-3 h-3 text-white" />
+                                )}
+                              </div>
+                              <span className="text-sm font-medium">Select All</span>
+                              <Badge className="ml-auto bg-gray-100 text-gray-600 hover:bg-gray-200">
+                                {assignedAccounts.length}
+                              </Badge>
+                            </div>
+
+                            {/* Account options */}
+                            <div className="py-1">
+                              {assignedAccounts.length === 0 ? (
+                                <div className="p-2 text-center text-sm text-gray-500">
+                                  No accounts available
+                                </div>
+                              ) : (
+                                assignedAccounts.map(account => {
+                                  const isSelected = selectedAccounts.includes(account);
+                                  const count = allLeads.filter(lead => lead.assignedAccount === account).length;
+
+                                  return (
+                                    <div
+                                      key={account}
+                                      className="flex items-center p-2 hover:bg-gray-50 cursor-pointer"
+                                      onClick={() => {
+                                        if (isSelected) {
+                                          setSelectedAccounts(selectedAccounts.filter(a => a !== account));
+                                        } else {
+                                          setSelectedAccounts([...selectedAccounts, account]);
+                                        }
+                                      }}
+                                    >
+                                      <div className={`w-4 h-4 border rounded flex items-center justify-center mr-2 ${isSelected ? "bg-blue-500 border-blue-500" : "border-gray-300"
+                                        }`}>
+                                        {isSelected && <Check className="w-3 h-3 text-white" />}
+                                      </div>
+                                      <span className="text-sm truncate max-w-[180px]">{account}</span>
+                                      <Badge className="ml-auto bg-gray-100 text-gray-600 hover:bg-gray-200">
+                                        {count}
+                                      </Badge>
+                                    </div>
+                                  );
+                                })
+                              )}
+                            </div>
+
+                            {/* Action buttons */}
+                            {selectedAccounts.length > 0 && (
+                              <div className="border-t border-gray-100 p-2 flex justify-end">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setSelectedAccounts([])}
+                                  className="text-xs text-gray-600"
+                                >
+                                  Clear selection
+                                </Button>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Active filters display */}
+        {(searchQuery || statusFilter !== 'all' || selectedAccounts.length > 0) && (
+          <div className="p-2 border-t border-gray-100 bg-gray-50/50 flex flex-wrap gap-2">
+            {searchQuery && (
+              <Badge variant="outline" className="bg-blue-50 border-blue-100 text-blue-700 flex items-center gap-1">
+                <Search className="w-3 h-3" />
+                <span>{searchQuery}</span>
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="ml-1 text-blue-700/70 hover:text-blue-800"
+                >
+                  &times;
+                </button>
+              </Badge>
+            )}
+
+            {statusFilter !== 'all' && (
+              <Badge variant="outline" className={`${getStatusDisplay(statusFilter).className} flex items-center gap-1`}>
+                <span>{getStatusDisplay(statusFilter).label}</span>
+                <button
+                  onClick={() => setStatusFilter('all')}
+                  className="ml-1 opacity-70 hover:opacity-100"
+                >
+                  &times;
+                </button>
+              </Badge>
+            )}
+
+            {selectedAccounts.map(account => (
+              <Badge
+                key={account}
+                variant="outline"
+                className="bg-purple-50 border-purple-100 text-purple-700 flex items-center gap-1"
+              >
+                <Users className="w-3 h-3" />
+                <span className="truncate max-w-[100px]">{account}</span>
+                <button
+                  onClick={() => setSelectedAccounts(selectedAccounts.filter(a => a !== account))}
+                  className="ml-1 text-purple-700/70 hover:text-purple-800"
+                >
+                  &times;
+                </button>
+              </Badge>
+            ))}
+
+            {(searchQuery || statusFilter !== 'all' || selectedAccounts.length > 0) && (
+              <button
+                onClick={() => {
+                  setSearchQuery('');
+                  setStatusFilter('all');
+                  setSelectedAccounts([]);
+                }}
+                className="text-xs text-gray-500 hover:text-gray-700 ml-auto underline"
+              >
+                Clear all filters
+              </button>
+            )}
           </div>
         )}
 
@@ -540,26 +787,25 @@ const CampaignAnalytics = ({
                       {viewMode && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               className="p-0 h-5 w-5 ml-1 hover:bg-gray-200 rounded-sm"
                             >
-                              <ChevronDown className="h-3 w-3" />
+                              <Filter className="h-3 w-3" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="start" className="w-56 bg-white border border-gray-200 shadow-md rounded-md p-1">
                             {availableStatuses.map((status) => (
-                              <DropdownMenuItem 
+                              <DropdownMenuItem
                                 key={status.value}
                                 onClick={() => setStatusFilter(status.value)}
-                                className={`text-sm px-3 py-2 rounded-sm cursor-pointer flex justify-between items-center ${
-                                  statusFilter === status.value ? 'bg-gray-100' : 'hover:bg-gray-50'
-                                }`}
+                                className={`text-sm px-3 py-2 rounded-sm cursor-pointer flex justify-between items-center ${statusFilter === status.value ? 'bg-gray-100' : 'hover:bg-gray-50'
+                                  }`}
                               >
                                 <span>{status.label}</span>
-                                <Badge 
-                                  variant="outline" 
+                                <Badge
+                                  variant="outline"
                                   className="ml-2 bg-gray-50 text-gray-700 text-xs font-normal"
                                 >
                                   {status.count}
@@ -572,7 +818,7 @@ const CampaignAnalytics = ({
                     </div>
                   </TableHead>
                   <TableHead className="font-medium text-gray-700 py-3 px-4">Last Activity</TableHead>
-                  
+
                   {/* Add dropdown to Assigned Account column */}
                   <TableHead className="font-medium text-gray-700 py-3 px-4">
                     <div className="flex items-center space-x-1">
@@ -580,53 +826,74 @@ const CampaignAnalytics = ({
                       {viewMode && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               className="p-0 h-5 w-5 ml-1 hover:bg-gray-200 rounded-sm"
                             >
-                              <ChevronDown className="h-3 w-3" />
+                              <Filter className="h-3 w-3" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="start" className="w-64 bg-white border border-gray-200 shadow-md rounded-md p-1 max-h-64 overflow-y-auto">
-                            <DropdownMenuItem 
-                              onClick={() => setAssignedAccountFilter('all')}
-                              className={`text-sm px-3 py-2 rounded-sm cursor-pointer flex justify-between items-center ${
-                                assignedAccountFilter === 'all' ? 'bg-gray-100' : 'hover:bg-gray-50'
-                              }`}
+                            {/* Select All option */}
+                            <div
+                              className="flex items-center p-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100"
+                              onClick={() => {
+                                if (selectedAccounts.length === assignedAccounts.length) {
+                                  setSelectedAccounts([]);
+                                } else {
+                                  setSelectedAccounts([...assignedAccounts]);
+                                }
+                              }}
                             >
-                              <span>All Accounts</span>
-                              <Badge 
-                                variant="outline" 
-                                className="ml-2 bg-gray-50 text-gray-700 text-xs font-normal"
-                              >
+                              <div className={`w-4 h-4 border rounded flex items-center justify-center mr-2 ${selectedAccounts.length === assignedAccounts.length
+                                  ? "bg-blue-500 border-blue-500"
+                                  : "border-gray-300"
+                                }`}>
+                                {selectedAccounts.length === assignedAccounts.length && (
+                                  <Check className="w-3 h-3 text-white" />
+                                )}
+                              </div>
+                              <span className="text-sm font-medium">All Accounts</span>
+                              <Badge className="ml-auto bg-gray-100 text-gray-600 hover:bg-gray-200">
                                 {allLeads.length}
                               </Badge>
-                            </DropdownMenuItem>
-                            
-                            {assignedAccounts.map((account) => (
-                              <DropdownMenuItem 
-                                key={account}
-                                onClick={() => setAssignedAccountFilter(account)}
-                                className={`text-sm px-3 py-2 rounded-sm cursor-pointer flex justify-between items-center ${
-                                  assignedAccountFilter === account ? 'bg-gray-100' : 'hover:bg-gray-50'
-                                }`}
-                              >
-                                <span className="truncate max-w-[180px]">{account}</span>
-                                <Badge 
-                                  variant="outline" 
-                                  className="ml-2 bg-gray-50 text-gray-700 text-xs font-normal"
+                            </div>
+
+                            {/* Account options */}
+                            {assignedAccounts.map((account) => {
+                              const isSelected = selectedAccounts.includes(account);
+                              const count = allLeads.filter(lead => lead.assignedAccount === account).length;
+
+                              return (
+                                <div
+                                  key={account}
+                                  className="flex items-center p-2 hover:bg-gray-50 cursor-pointer"
+                                  onClick={() => {
+                                    if (isSelected) {
+                                      setSelectedAccounts(selectedAccounts.filter(a => a !== account));
+                                    } else {
+                                      setSelectedAccounts([...selectedAccounts, account]);
+                                    }
+                                  }}
                                 >
-                                  {allLeads.filter(lead => lead.assignedAccount === account).length}
-                                </Badge>
-                              </DropdownMenuItem>
-                            ))}
+                                  <div className={`w-4 h-4 border rounded flex items-center justify-center mr-2 ${isSelected ? "bg-blue-500 border-blue-500" : "border-gray-300"
+                                    }`}>
+                                    {isSelected && <Check className="w-3 h-3 text-white" />}
+                                  </div>
+                                  <span className="text-sm truncate max-w-[180px]">{account}</span>
+                                  <Badge className="ml-auto bg-gray-100 text-gray-600 hover:bg-gray-200">
+                                    {count}
+                                  </Badge>
+                                </div>
+                              );
+                            })}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       )}
                     </div>
                   </TableHead>
-                  
+
                   {!viewMode && (
                     <TableHead className="font-medium text-gray-700 py-3 px-4">LinkedIn URL</TableHead>
                   )}
@@ -642,18 +909,19 @@ const CampaignAnalytics = ({
                 ) : (
                   filteredLeads.map((lead) => {
                     const statusDisplay = getStatusDisplay(lead.status);
-                    const isHighlighted = assignedAccountFilter !== 'all' && lead.assignedAccount === assignedAccountFilter;
-                    
+                    const isHighlighted = selectedAccounts.length > 0 && selectedAccounts.includes(lead.assignedAccount);
+
                     return (
-                      <TableRow 
-                        key={lead.id} 
-                        className={`hover:bg-gray-50 transition-colors border-b border-gray-100 ${
-                          isHighlighted ? 'bg-blue-50/30' : ''
-                        }`}
+                      <TableRow
+                        key={lead.id}
+                        className={`hover:bg-gray-50 transition-colors border-b border-gray-100 ${isHighlighted ? 'bg-blue-50/30' : ''
+                          }`}
                       >
                         <TableCell className="py-3 px-4">
-                          {/* Show only the name, no status or ID */}
-                          <span className="text-gray-900 font-medium">{lead.url}</span>
+                          {/* Show only the name or shortened URL */}
+                          <span className="text-gray-900 font-medium">
+                            {lead.firstName || shortenLinkedInUrl(lead.url)}
+                          </span>
                         </TableCell>
                         <TableCell className="py-3 px-4">
                           <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${statusDisplay.className} inline-block min-w-0`}>
@@ -667,8 +935,14 @@ const CampaignAnalytics = ({
                         {!viewMode && (
                           <TableCell className="py-3 px-4 text-sm text-blue-600">
                             {lead.url && (
-                              <a href={lead.url} target="_blank" rel="noopener noreferrer" className="hover:underline truncate block max-w-[200px]">
-                                {lead.url.replace('https://www.linkedin.com/in/', '')}
+                              <a
+                                href={lead.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:underline block max-w-[200px]"
+                                title={lead.url} // Add title for full URL on hover
+                              >
+                                {shortenLinkedInUrl(lead.url)}
                               </a>
                             )}
                           </TableCell>

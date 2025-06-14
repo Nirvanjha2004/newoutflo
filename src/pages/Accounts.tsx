@@ -4,15 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import LinkedInConnectionModal from "@/components/LinkedinConnectionModal";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAccountsQuery } from "../hooks/useAccountQueries";
 import { Account, SyncState } from "../types/accounts";
 import { useDeleteAccountMutation } from "@/hooks/useAccountMutations";
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import {
   Dialog,
@@ -23,6 +24,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import DashboardLayout from "@/components/DashboardLayout";
+import SenderLimitsDrawer from "@/components/SenderLimitsDrawer";
+
+interface SenderLimitsDrawerProps {
+  isOpen: boolean;
+  onClose: () => void;
+  account: Account | null;
+}
 
 // Add this utility function at the top of your file
 const getRandomProfileImage = () => {
@@ -39,19 +47,26 @@ const AccountsContent = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [accountToDelete, setAccountToDelete] = useState<Account | null>(null);
   const deleteAccount = useDeleteAccountMutation();
-  
+  const [showLinkedInModal, setShowLinkedInModal] = useState(false);
+  const [isLimitsDrawerOpen, setIsLimitsDrawerOpen] = useState(false);
+  const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const { data: accounts = [], isLoading, error } = useAccountsQuery();
 
   console.log("Accounts data:", accounts);
   // Filter accounts based on search term and status
   const filteredAccounts = accounts.filter(account => {
     const matchesSearch = `${account.firstName} ${account.lastName}`.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "all" || 
+    const matchesStatus = statusFilter === "all" ||
       (statusFilter === "connected" && account.status === SyncState.ACTIVE) ||
       (statusFilter === "disconnected" && account.status === SyncState.INACTIVE);
-    
+
     return matchesSearch && matchesStatus;
   });
+
+  const handleConfigureLimits = (account: Account) => {
+    setSelectedAccount(account);
+    setIsLimitsDrawerOpen(true);
+  };
 
   const getStatusInfo = (account: Account) => {
     switch (account.status) {
@@ -93,7 +108,12 @@ const AccountsContent = () => {
 
   // This ensures consistent profile images for the same account
   const getAccountProfileImage = (account: Account) => {
-    // Create a hash from the account ID to get a consistent image
+    // Return the actual profile image if it exists
+    if (account.profileImageUrl) {
+      return account.profileImageUrl;
+    }
+    
+    // Otherwise, use the deterministic random image as fallback
     const hash = account.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
     const imageIndex = (hash % 13) + 1; // 1-13 range
     return `/profileImages/user${imageIndex}.png`;
@@ -171,7 +191,7 @@ const AccountsContent = () => {
                 className="pl-9 w-48 h-8 text-sm focus:border-[#5a41cd] focus:ring-[#5a41cd]"
               />
             </div>
-            <Select 
+            <Select
               value={statusFilter}
               onValueChange={(value) => setStatusFilter(value as "all" | "connected" | "disconnected")}
             >
@@ -186,16 +206,17 @@ const AccountsContent = () => {
             </Select>
           </div>
           <div className="flex items-center space-x-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               className="h-8 text-xs border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-[#5a41cd]"
             >
               <Settings size={12} className="mr-1" />
               Purchase seats
             </Button>
-            <Button 
+            <Button
               className="bg-[#5a41cd] hover:bg-[#5a41cd]/90 text-white h-8 text-xs"
+              onClick={() => setShowLinkedInModal(true)}
             >
               <span className="mr-1">+</span>
               Connect account
@@ -226,7 +247,7 @@ const AccountsContent = () => {
                 <div key={account.id} className="grid grid-cols-4 gap-4 px-4 py-3 border-b border-gray-100 hover:bg-[#edecfe]/10 transition-colors">
                   <div className="flex items-center space-x-2">
                     <Avatar className="w-8 h-8">
-                      <img 
+                      <img
                         src={getAccountProfileImage(account)}
                         alt={fullName}
                         className="h-full w-full object-cover"
@@ -241,13 +262,13 @@ const AccountsContent = () => {
                     </Avatar>
                     <span className="font-medium text-gray-900 text-sm">{fullName}</span>
                   </div>
-                  
+
                   <div>
                     <Badge className={`${statusInfo.className} text-xs`}>
                       {statusInfo.text}
                     </Badge>
                   </div>
-                  
+
                   <div className="flex items-center space-x-3 text-xs text-gray-600">
                     <div className="flex items-center space-x-1">
                       <span className="text-gray-500">📤</span>
@@ -265,14 +286,19 @@ const AccountsContent = () => {
                       <span>{account.accountActions?.sendMessage || 0} messages sent</span>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center justify-end space-x-2">
                     {account.status === SyncState.INACTIVE ? (
                       <Button variant="outline" size="sm" className="text-blue-600 border-blue-200 hover:bg-blue-50 h-7 text-xs">
                         Re-connect
                       </Button>
                     ) : (
-                      <Button variant="outline" size="sm" className="h-7 text-xs border-[#5a41cd]/20 text-[#5a41cd] hover:bg-[#5a41cd]/10">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs border-[#5a41cd]/20 text-[#5a41cd] hover:bg-[#5a41cd]/10"
+                        onClick={() => handleConfigureLimits(account)}
+                      >
                         <Settings size={10} className="mr-1" />
                         Configure limits
                       </Button>
@@ -284,7 +310,7 @@ const AccountsContent = () => {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           onClick={() => handleDeleteClick(account)}
                           className="text-red-600 focus:text-red-600"
                         >
@@ -324,20 +350,20 @@ const AccountsContent = () => {
           <DialogHeader>
             <DialogTitle>Confirm Account Deletion</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete {accountToDelete?.firstName}'s account? 
+              Are you sure you want to delete {accountToDelete?.firstName}'s account?
               This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex space-x-2 justify-end mt-4">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setShowDeleteModal(false)}
               className="h-9 border-gray-300 hover:bg-gray-50"
             >
               Cancel
             </Button>
-            <Button 
-              variant="destructive" 
+            <Button
+              variant="destructive"
               onClick={handleDeleteConfirm}
               className="h-9 bg-red-600 hover:bg-red-700"
             >
@@ -346,6 +372,19 @@ const AccountsContent = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* LinkedIn Connection Modal */}
+      <LinkedInConnectionModal
+        isOpen={showLinkedInModal}
+        onClose={() => setShowLinkedInModal(false)}
+      />
+
+      {/* Sender Limits Drawer */}
+      <SenderLimitsDrawer
+        isOpen={isLimitsDrawerOpen}
+        onClose={() => setIsLimitsDrawerOpen(false)}
+        account={selectedAccount}
+      />
     </div>
   );
 };

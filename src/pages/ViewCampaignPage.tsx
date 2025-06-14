@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, ArrowRight, AlertCircle, Lock, Eye, Play, Pause, Edit, ExternalLink, ChevronDown, BarChart2, Check, MessageCircle, ArrowLeftCircle, Users } from 'lucide-react';
+import { ArrowLeft, ArrowRight, AlertCircle, Lock, Eye, Play, Pause, Edit, ExternalLink, ChevronDown, BarChart2, Check, MessageCircle, ArrowLeftCircle, Users, Send, RefreshCw, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import CampaignBreadcrumb from '@/components/Campaign/CampaignBreadcrumb';
@@ -21,6 +21,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 
 // Add to ViewCampaignPage.tsx
 import { CampaignStepType } from '@/types/campaigns';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
 // Transform campaign workflow data into the expected format for Sequence component
 const transformWorkflowData = (workflow: any[] | undefined) => {
@@ -213,6 +214,7 @@ const CampaignViewContent = () => {
     const [campaignData, setCampaignData] = useState<Partial<Campaign> & { state?: CampaignState }>({});
 
     //console.log("Initial campaign data:", campaignData);
+    const [leadFilterStatus, setLeadFilterStatus] = useState('all');
 
     // Track submission and action states
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -571,9 +573,12 @@ const CampaignViewContent = () => {
                     ? campaignData.leads
                     : campaignData.leads?.data || [];
 
+
+                    console.log("Rendering ListOfLeads with leads:", leadsToPass, "and filter status:", leadFilterStatus);
                 return <CampaignAnalytics
                     campaignInsights={campaignInsights}
                     leadData={leadsToPass}
+                    initialFilterStatus={leadFilterStatus}
                     updateLeads={(leads) => {
                         // If original leads is an array, update directly
                         if (Array.isArray(campaignData.leads)) {
@@ -790,6 +795,23 @@ const CampaignViewContent = () => {
                     </Alert>
                 )}
 
+                {/* ADD ANALYTICS CARDS HERE - for view mode only */}
+                {isViewMode && (
+                    <CampaignAnalyticsCards
+                        campaignInsights={campaignInsights}
+                        isLoading={insightsLoading}
+                        onRefresh={() => refreshInsights()}
+                        onFilterChange={(status) => {
+                            // Set filter status and scroll to leads table
+                            setLeadFilterStatus(status);
+                            setCurrentStep(2); // Change to the leads tab
+                            setTimeout(() => {
+                                document.getElementById('leads-table-section')?.scrollIntoView({ behavior: 'smooth' });
+                            }, 100);
+                        }}
+                    />
+                )}
+
                 {/* Breadcrumb - allows navigation in view mode */}
                 <CampaignBreadcrumb
                     steps={steps}
@@ -802,6 +824,102 @@ const CampaignViewContent = () => {
                 <div className={`mt-6 ${isViewMode ? 'bg-white p-6 rounded-xl shadow-sm border border-gray-100' : ''}`}>
                     {renderStepContent()}
                 </div>
+            </div>
+        </div>
+    );
+};
+
+// New component for campaign analytics cards
+const CampaignAnalyticsCards = ({
+    campaignInsights,
+    isLoading,
+    onRefresh,
+    onFilterChange  // Add new prop for handling filter changes
+}: {
+    campaignInsights: any,
+    isLoading: boolean,
+    onRefresh: () => void,
+    onFilterChange: (status: string) => void  // New prop
+}) => {
+    const analytics = [
+        {
+            title: 'Connection Requests',
+            value: campaignInsights?.connectionRequestsSent || 0,
+            icon: Users,
+            bgColor: 'bg-blue-50',
+            iconColor: 'text-blue-500',
+            filterStatus: 'connectionSent'  // Add filter status
+        },
+        {
+            title: 'Requests Accepted',
+            value: campaignInsights?.connectionsAccepted || 0,
+            icon: CheckCircle,
+            bgColor: 'bg-green-50',
+            iconColor: 'text-green-500',
+            filterStatus: 'connected'  // Add filter status
+        },
+        {
+            title: 'Messages Sent',
+            value: campaignInsights?.messagesSent || 0,
+            icon: Send,
+            bgColor: 'bg-purple-50',
+            iconColor: 'text-purple-500',
+            filterStatus: 'success'  // Add filter status
+        },
+        {
+            title: 'Responses',
+            value: campaignInsights?.messagesReceived || 0,
+            icon: MessageCircle,
+            bgColor: 'bg-orange-50',
+            iconColor: 'text-orange-500',
+            filterStatus: 'success'  // Add filter status
+        }
+    ];
+
+    return (
+        <div className="mb-6">
+            <div className="flex justify-between items-center mb-3">
+                <h2 className="text-lg font-medium text-gray-800">Campaign Analytics</h2>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onRefresh}
+                    disabled={isLoading}
+                    className="h-8 text-gray-600 hover:text-gray-900"
+                >
+                    <RefreshCw className={`h-3.5 w-3.5 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
+                    Refresh
+                </Button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {analytics.map((metric, index) => (
+                    <Card
+                        key={index}
+                        className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200 cursor-pointer hover:border-primary/30"
+                        onClick={() => onFilterChange(metric.filterStatus)}
+                    >
+                        <CardHeader className="pb-2">
+                            <div className="flex items-center justify-between">
+                                <CardTitle className="text-sm font-medium text-gray-600">
+                                    {metric.title}
+                                </CardTitle>
+                                <div className={`p-2 rounded-lg ${metric.bgColor}`}>
+                                    <metric.icon className={`w-5 h-5 ${metric.iconColor}`} />
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="pt-0">
+                            <div className="text-2xl font-bold text-gray-900 mb-1">
+                                {isLoading ? (
+                                    <div className="h-8 w-16 bg-gray-100 animate-pulse rounded"></div>
+                                ) : (
+                                    metric.value.toLocaleString()
+                                )}
+                            </div>
+                            <p className="text-xs text-gray-500">Click to filter</p>
+                        </CardContent>
+                    </Card>
+                ))}
             </div>
         </div>
     );
