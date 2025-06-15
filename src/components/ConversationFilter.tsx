@@ -145,13 +145,13 @@ export const ConversationsFilter: FC<ConversationsFilterProps> = ({
         </div>
         
         {/* Header */}
-        <div className="flex items-center p-3 border-b">
+        {/* <div className="flex items-center p-3 border-b">
           <h4 className="text-sm font-semibold text-gray-900">Senders</h4>
           <ChevronDown className="ml-1 h-4 w-4 text-gray-500" />
-        </div>
+        </div> */}
 
         {/* Search */}
-        <div className="p-2 border-b">
+        {/* <div className="p-2 border-b">
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
             <Input
@@ -161,10 +161,10 @@ export const ConversationsFilter: FC<ConversationsFilterProps> = ({
               className="w-full pl-8 h-9 text-sm"
             />
           </div>
-        </div>
+        </div> */}
 
         {/* Accounts List */}
-        <div className="max-h-[300px] overflow-y-auto">
+        {/* <div className="max-h-[300px] overflow-y-auto">
           {filteredAccounts.length > 0 ? (
             filteredAccounts.map((account) => {
               if (!account.id) return null;
@@ -210,7 +210,7 @@ export const ConversationsFilter: FC<ConversationsFilterProps> = ({
               No accounts found
             </div>
           )}
-        </div>
+        </div> */}
       </PopoverContent>
     </Popover>
   );

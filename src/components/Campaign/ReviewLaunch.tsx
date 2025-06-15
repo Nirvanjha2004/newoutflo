@@ -368,12 +368,14 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
           };
         }
       });
+
+      console.log("Setting operational times:", operationalTimes);
       
       if (setOperationalTimes) {
         setOperationalTimes(operationalTimes);
       }
       
-      onSubmit();
+      // onSubmit();
     }
   };
 
@@ -966,7 +968,7 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
                   Launching Campaign...
                 </>
               ) : (
-                <>🚀 Launch Campaign</>
+                <>🚀 Save Time</>
               )}
             </Button>
           </div>

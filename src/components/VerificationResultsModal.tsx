@@ -190,13 +190,10 @@ export function VerificationResultsModal({
         </div>
         
         <DialogFooter className="sm:justify-between border-t border-gray-100 pt-4">
-          <Button
-            variant="outline"
-            onClick={onClose}
-            className="border-gray-300"
-          >
-            Edit Data
-          </Button>
+          {/* Remove Edit Data button and replace with summary text */}
+          <div className="text-sm text-gray-600">
+            {results.urlsVerified.valid} valid leads will be uploaded
+          </div>
           <Button
             onClick={onContinue}
             className="bg-green-600 hover:bg-green-700 text-white"

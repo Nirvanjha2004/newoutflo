@@ -1,64 +1,332 @@
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Conversation } from "@/types/inbox";
+import { Conversation, Account } from "@/types/inbox"; // Ensure Account is imported if used directly
 import { useConversationsQuery } from "@/hooks/useInboxQueries";
 import { useAccountsQuery } from "@/hooks/useAccountQueries";
-import { useMemo } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { ChevronDown } from "lucide-react"; // If using lucide-react
 
 interface ConversationListProps {
   searchTerm: string;
   activeFilter: string;
   isPendingFilter: boolean;
-  isMyMessagesFilter: boolean; // Add this new prop
+  isMyMessagesFilter: boolean;
   selectedConversation: Conversation | null;
   onSelectConversation: (conversation: Conversation) => void;
 }
+
+// --- PLACEHOLDER HELPER FUNCTIONS ---
+// Ensure your actual `getAccount` and `getAccountByUrn` functions are implemented and available in this scope.
+// The `getAccount` function is crucial and should match the behavior described in your prompt.
+// `accountsData` here refers to the list of the app user's own accounts.
+const getAccountPlaceholder = (
+  conversation: Conversation,
+  type: "account" | "connection",
+  accountsData: Account[], // App user's own accounts
+  hint?: any
+): (Partial<Account> & { sentBy?: any }) | undefined => {
+  if (!conversation || !conversation.accounts || conversation.accounts.length === 0) return undefined;
+
+  if (type === "account") {
+    // Attempt to find which of the app user's accounts is in this conversation
+    const userAccountInConversation = conversation.accounts.find(convAcc =>
+      accountsData.some(appAcc => appAcc.urn === convAcc.urn)
+    );
+    if (userAccountInConversation) {
+      // Simplistic hint: index of this account in conversation.accountURNs or a default
+      const sentByHint = conversation.accountURNs?.indexOf(userAccountInConversation.urn);
+      return { ...userAccountInConversation, sentBy: sentByHint !== -1 ? sentByHint : 0 };
+    }
+    // Fallback: if no direct match, this placeholder returns undefined.
+    // Your actual function should be more robust.
+    return undefined;
+  }
+
+  if (type === "connection") {
+    // Attempt to find the account that is NOT one of the app user's accounts
+    const connectionAccount = conversation.accounts.find(convAcc =>
+      !accountsData.some(appAcc => appAcc.urn === convAcc.urn)
+    );
+    if (connectionAccount) return connectionAccount;
+
+    // Fallback based on hint (if hint is an index, for example)
+    // This part of placeholder is very naive.
+    if (hint !== undefined && typeof hint === 'number' && conversation.accounts[hint === 0 ? 1 : 0]) {
+        const potentialConnection = conversation.accounts[hint === 0 ? 1 : 0];
+        // Ensure this potential connection is not one of the app user's accounts
+        if (!accountsData.some(appAcc => appAcc.urn === potentialConnection.urn)) {
+            return potentialConnection;
+        }
+    }
+    // If still no connection found, return the first account that isn't the user's, or a default.
+    // This placeholder returns the first account if only one, or second if first is user.
+    const firstAccountIsUser = accountsData.some(appAcc => appAcc.urn === conversation.accounts[0]?.urn);
+    if (conversation.accounts.length > 1 && firstAccountIsUser) return conversation.accounts[1];
+    if (!firstAccountIsUser && conversation.accounts[0]) return conversation.accounts[0];
+    return conversation.accounts[0]; // Default/fallback
+  }
+  return undefined;
+};
+
+const getAccountByUrnPlaceholder = (urn: string, accountsInConversation: Array<Partial<Account>>): Partial<Account> | undefined => {
+    return accountsInConversation.find(acc => acc.urn === urn);
+};
+// --- END OF PLACEHOLDER HELPER FUNCTIONS ---
+
 
 export const ConversationList = ({
   searchTerm,
   activeFilter,
   isPendingFilter,
-  isMyMessagesFilter, // Add this new prop
+  isMyMessagesFilter,
   selectedConversation,
   onSelectConversation
 }: ConversationListProps) => {
-  // Fetch conversations based on search term
-  const { data: conversations = [], isLoading: loading, error } = useConversationsQuery(
+  // Existing states
+  // ...
+  
+  // Add state for selected sender accounts
+  // This map tracks which accounts are selected for filtering (key = account id, value = boolean)
+  const [selectedSenderAccounts, setSelectedSenderAccounts] = useState<Record<string, boolean>>({});
+  const [isSenderFilterOpen, setIsSenderFilterOpen] = useState(false);
+  const senderFilterRef = useRef<HTMLDivElement>(null);
+
+  const { data: conversationsData = [], isLoading: loading, error } = useConversationsQuery(
     isPendingFilter,
     searchTerm
   );
 
-  // Fetch accounts to identify which account is primary
-  const { data: accounts = [] } = useAccountsQuery();
+  const { data: appUserAccountsData = [] } = useAccountsQuery();
 
-  // Filter conversations based on active filter
+  const getAccount = useCallback(
+    (conversation: Conversation, type: "account" | "connection", sentByHint?: number) => {
+      if (!conversation || !conversation.accountURNs || conversation.accountURNs.length === 0) {
+        return undefined;
+      }
+      if (type === "account") {
+        let accountUrn = conversation.accountURNs[0];
+        let account = (appUserAccountsData ?? []).find((acc) => acc.urn === accountUrn);
+        if (account) {
+          return {
+            urn: account.urn,
+            firstName: account.firstName,
+            lastName: account.lastName,
+            profileImageUrl: account.profileImageUrl,
+            sentBy: 1, 
+          };
+        } else {
+          if (conversation.accountURNs.length > 1) {
+            accountUrn = conversation.accountURNs[1];
+            account = (appUserAccountsData ?? []).find((acc) => acc.urn === accountUrn);
+            return {
+              urn: account?.urn,
+              firstName: account?.firstName,
+              lastName: account?.lastName,
+              profileImageUrl: account?.profileImageUrl,
+              sentBy: 0, 
+            };
+          }
+        }
+        return { sentBy: 0, urn: undefined, firstName: undefined, lastName: undefined, profileImageUrl: undefined }; // Ensure all properties for type consistency
+      }
+      if (type === "connection") {
+        const connectionIndex = sentByHint === 1 ? 1 : 0;
+        if (conversation.accountURNs.length > connectionIndex) {
+            const connectionUrn = conversation.accountURNs[connectionIndex];
+            const connectionAccount = conversation.accounts.find((acc) => acc.urn === connectionUrn);
+            // If connectionAccount is found, return it, otherwise, try to find any non-user account
+            if (connectionAccount) return connectionAccount;
+        }
+        // Fallback: find the first account in conversation.accounts that is not one of the app user's accounts
+        return conversation.accounts.find(acc => !(appUserAccountsData ?? []).some(userAcc => userAcc.urn === acc.urn));
+      }
+      return undefined;
+    },
+    [appUserAccountsData],
+  );
+
+
   const filteredConversations = useMemo(() => {
-    return conversations.filter(conversation => {
-      // Find the primary account URN (your user's account)
-      const primaryAccountUrn = accounts.length > 0 ? accounts[0].urn : null;
+    // Assuming `conversationsData` is the array of conversations
+    return conversationsData.filter(conversation => {
+      // Your existing filtering logic based on isPendingFilter, isMyMessagesFilter
+      // This example keeps the existing filter logic structure
+      const primaryAppUserAccountForFilter = appUserAccountsData.length > 0 ? appUserAccountsData[0] : null; // Simplified for existing filter
 
-      // Determine if the last message was sent by your user or someone else
-      const lastMessageSentByUser = conversation.lastMessage &&
-        conversation.lastMessage.senderUrn === primaryAccountUrn;
+      const lastMessageSentByAppUser = conversation.lastMessage && primaryAppUserAccountForFilter &&
+        conversation.lastMessage.senderUrn === primaryAppUserAccountForFilter.urn;
 
-      // If pending filter is on, only show conversations where the last message is NOT from the user
-      if (isPendingFilter && lastMessageSentByUser) {
+      if (isPendingFilter && lastMessageSentByAppUser) {
         return false;
       }
-
-      // If my messages filter is on, only show conversations where the last message IS from the user
-      if (isMyMessagesFilter && !lastMessageSentByUser) {
+      if (isMyMessagesFilter && !lastMessageSentByAppUser) {
         return false;
       }
-
-      // Make sure both filters can't be active at the same time
-      // (handled in parent component)
-
       return true;
     });
-  }, [searchTerm, activeFilter, isPendingFilter, isMyMessagesFilter, conversations, accounts]);
+  }, [searchTerm, activeFilter, isPendingFilter, isMyMessagesFilter, conversationsData, appUserAccountsData]);
 
+  // Check if any sender account filters are active
+  const hasActiveSenderFilters = useMemo(() => {
+    return Object.values(selectedSenderAccounts).some(selected => selected === true);
+  }, [selectedSenderAccounts]);
+  
+  // Filter conversations based on selected sender accounts
+  const filteredConversationsBySender = useMemo(() => {
+    if (!conversationsData || conversationsData.length === 0) {
+      return [];
+    }
+    
+    // If no sender accounts are selected for filtering, return all conversations
+    if (!hasActiveSenderFilters) {
+      return conversationsData;
+    }
+    
+    // Filter conversations by selected sender accounts
+    return conversationsData.filter(conversation => {
+      // Get all account URNs in this conversation
+      const accountURNs = conversation.accounts.map(acc => acc.urn).filter(Boolean);
+      
+      // For each URN, check if it corresponds to a selected account
+      for (const urn of accountURNs) {
+        // Find the account with this URN
+        const matchingAccount = appUserAccountsData.find(acc => acc.urn === urn);
+        
+        // If account exists and its ID is in the selected accounts map with value=true
+        if (matchingAccount && matchingAccount.id && selectedSenderAccounts[matchingAccount.id]) {
+          return true; // Include this conversation
+        }
+      }
+      
+      // None of this conversation's accounts match the selected filters
+      return false;
+    });
+  }, [conversationsData, appUserAccountsData, selectedSenderAccounts, hasActiveSenderFilters]);
+  
+  // Apply additional filters (search, pending, etc.)
+  const finalFilteredConversations = useMemo(() => {
+    let result = filteredConversationsBySender;
+    
+    // Apply existing filters (search term, active filter, etc.)
+    if (searchTerm) {
+      const lowerCaseSearch = searchTerm.toLowerCase();
+      result = result.filter(conversation => {
+        // Existing search logic
+        // ...
+      });
+    }
+    
+    // Apply isPendingFilter logic
+    if (isPendingFilter) {
+      result = result.filter(conversation => {
+        // Existing pending filter logic
+        // ...
+      });
+    }
+    
+    // Apply other existing filters
+    // ...
+    
+    return result;
+  }, [filteredConversationsBySender, searchTerm, isPendingFilter, isMyMessagesFilter, activeFilter]);
+  
+  // Toggle a sender account filter
+  const toggleSenderAccountFilter = (accountId: string) => {
+    setSelectedSenderAccounts(prev => ({
+      ...prev,
+      [accountId]: !prev[accountId]
+    }));
+  };
+  
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (senderFilterRef.current && !senderFilterRef.current.contains(event.target as Node)) {
+        setIsSenderFilterOpen(false);
+      }
+    }
+    
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Render section for sender account filters
+  const renderSenderAccountFilters = () => {
+    if (!appUserAccountsData || appUserAccountsData.length === 0) {
+      return null;
+    }
+    
+    // Count active filters
+    const activeFiltersCount = Object.values(selectedSenderAccounts).filter(Boolean).length;
+    
+    return (
+      <div className="mb-4 relative" ref={senderFilterRef}>
+        <div className="flex justify-between items-center">
+          <h3 className="text-xs font-medium text-gray-700 mb-2">Filter by sender</h3>
+          <button 
+            onClick={() => setIsSenderFilterOpen(prev => !prev)}
+            className="flex items-center text-xs text-gray-600 hover:text-gray-900 py-1 px-2 border border-gray-200 rounded-md"
+          >
+            {activeFiltersCount > 0 && (
+              <span className="mr-1 bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full">
+                {activeFiltersCount}
+              </span>
+            )}
+            <span>Select accounts</span>
+            <ChevronDown className={`h-4 w-4 ml-1 transition-transform ${isSenderFilterOpen ? 'transform rotate-180' : ''}`} />
+          </button>
+        </div>
+        
+        {isSenderFilterOpen && (
+          <div className="absolute right-0 top-10 w-64 bg-white border border-gray-200 rounded-md shadow-lg z-10 p-2 mt-1">
+            <div className="max-h-60 overflow-y-auto">
+              {appUserAccountsData.map(account => {
+                const isSelected = !!selectedSenderAccounts[account.id];
+                const accountName = `${account.firstName || ''} ${account.lastName || ''}`.trim() || 
+                  account.email?.split('@')[0] || 'User';
+                  
+                return (
+                  <button
+                    key={account.id}
+                    onClick={() => toggleSenderAccountFilter(account.id)}
+                    className={`flex items-center w-full px-3 py-2 text-left text-sm rounded-md mb-1 ${
+                      isSelected 
+                        ? 'bg-indigo-50 text-indigo-700' 
+                        : 'hover:bg-gray-50 text-gray-700'
+                    }`}
+                  >
+                    <Avatar className="w-6 h-6 mr-2">
+                      <AvatarFallback className={`text-[10px] ${
+                        isSelected ? 'bg-indigo-500 text-white' : 'bg-gray-200 text-gray-600'
+                      }`}>
+                        {accountName.substring(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="flex-1">{accountName}</span>
+                    {isSelected && (
+                      <span className="text-indigo-600 ml-2">✓</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            {activeFiltersCount > 0 && (
+              <div className="pt-2 mt-2 border-t border-gray-200">
+                <button 
+                  onClick={() => setSelectedSenderAccounts({})}
+                  className="text-xs text-indigo-600 hover:text-indigo-800 w-full text-left px-3 py-1"
+                >
+                  Clear all filters
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+  
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
@@ -95,105 +363,175 @@ export const ConversationList = ({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      {filteredConversations.map((conversation) => {
-        // Find the account URN that belongs to our user
-        const primaryAccountUrn = accounts.length > 0 ? accounts[0].urn : null;
+    <div className="flex-1 overflow-y-auto bg-indigo-50/70 p-4">
+      {/* Display sender account filters */}
+      {renderSenderAccountFilters()}
+      
+      {hasActiveSenderFilters && (
+        <div className="mb-3 px-2 py-1 bg-indigo-50 border border-indigo-100 rounded-md">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-indigo-700">
+              Filtering by {Object.values(selectedSenderAccounts).filter(Boolean).length} sender(s)
+            </span>
+            <button 
+              onClick={() => setSelectedSenderAccounts({})}
+              className="text-xs text-indigo-600 hover:text-indigo-800"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
+      
+      {/* Display conversations using finalFilteredConversations */}
+      <div className="space-y-4">
+        {finalFilteredConversations.map((conversation) => {
+          const initialAppUserAccountDetails = getAccount(conversation, "account");
+          const validAppUserAccountFound = !!initialAppUserAccountDetails?.urn;
+          const primarySentByFullName = validAppUserAccountFound 
+              ? `${initialAppUserAccountDetails.firstName || ""} ${initialAppUserAccountDetails.lastName || ""}`.trim()
+              : "";
+          const connectionHint = initialAppUserAccountDetails?.sentBy;
 
-        // Find the contact account (the one that's not our primary account)
-        const contactAccount = conversation.accounts.find(acc => acc.urn !== primaryAccountUrn) || conversation.accounts[0];
+          const isUndefinedInSentBy = !validAppUserAccountFound || primarySentByFullName === ""; // Simplified: empty name means undefined
 
-        // Get names for display
-        const contactName = `${contactAccount.firstName || ''} ${contactAccount.lastName || ''}`.trim();
-        const contactInitials = `${(contactAccount.firstName?.[0] || '')}${(contactAccount.lastName?.[0] || '')}`.toUpperCase();
+          const accountTypeForUserDisplay = isUndefinedInSentBy ? "connection" : "account";
+          const connectionTypeForOtherDisplay = isUndefinedInSentBy ? "account" : "connection";
+          
+          const otherPersonsAccountDetails = getAccount(conversation, connectionTypeForOtherDisplay, connectionHint);
+          const otherPersonsName = `${otherPersonsAccountDetails?.firstName || ""} ${otherPersonsAccountDetails?.lastName || ""}`.trim() || "Unknown Contact";
+          const otherPersonsInitials = `${(otherPersonsAccountDetails?.firstName?.[0] || '')}${(otherPersonsAccountDetails?.lastName?.[0] || '')}`.toUpperCase() || '??';
+          const otherPersonsProfileImage = otherPersonsAccountDetails?.profileImageUrl || '';
 
-        // Get primary account for sender display (our user's name)
-        const primaryAccount = accounts.find(acc => acc.urn === primaryAccountUrn) || {
-          firstName: "Your",
-          lastName: "Account"
-        };
-        const primaryAccountName = `${primaryAccount.firstName || ''} ${primaryAccount.lastName || ''}`.trim();
+          const appUsersAccountInvolvedDetails = getAccount(conversation, accountTypeForUserDisplay, accountTypeForUserDisplay === "connection" ? connectionHint : undefined);
+          const appUsersAccountName = `${appUsersAccountInvolvedDetails?.firstName || ""} ${appUsersAccountInvolvedDetails?.lastName || ""}`.trim() || "Your Account";
+          const appUserInvolvedUrn = appUsersAccountInvolvedDetails?.urn;
 
-        // Determine if the last message was sent by our user
-        const lastMessageSentByUser = conversation.lastMessage &&
-          conversation.lastMessage.senderURN === primaryAccountUrn;
+          // Determine sender of the last message for display
+          const lastMessageSenderUrn = conversation.lastMessage?.senderUrn;
+          let lastMessageSenderDisplayName = "Unknown Sender";
+          let lastMessageSenderAvatarDetails: Partial<Account> | undefined = undefined;
 
-        // Format date properly
-        const lastActivityTime = conversation.lastActivityAtEpoch || conversation.lastActivityAt;
-        let formattedDate = "Invalid Date";
-
-        if (lastActivityTime) {
-          // Convert to number if it's a string
-          const timestamp = typeof lastActivityTime === 'string' ? parseInt(lastActivityTime) : lastActivityTime;
-          const date = new Date(timestamp);
-
-          // Check if date is today
-          const isToday = new Date().toDateString() === date.toDateString();
-          if (isToday) {
-            formattedDate = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-          } else {
-            formattedDate = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+          if (lastMessageSenderUrn === appUserInvolvedUrn) {
+            lastMessageSenderDisplayName = appUsersAccountName; // Or "You"
+            lastMessageSenderAvatarDetails = appUsersAccountInvolvedDetails;
+          } else if (lastMessageSenderUrn === otherPersonsAccountDetails?.urn) {
+            lastMessageSenderDisplayName = otherPersonsName;
+            lastMessageSenderAvatarDetails = otherPersonsAccountDetails;
+          } else if (lastMessageSenderUrn) {
+            // Fallback for cases where sender URN is neither (e.g. group chat, or data mismatch)
+            // Try to find this specific URN in the conversation.accounts array
+            const senderDetails = conversation.accounts.find(acc => acc.urn === lastMessageSenderUrn);
+            if (senderDetails) {
+              lastMessageSenderDisplayName = `${senderDetails.firstName || ""} ${senderDetails.lastName || ""}`.trim() || "Unknown Sender";
+              lastMessageSenderAvatarDetails = senderDetails;
+            }
+          } else if (conversation.lastMessage) {
+              // If no sender URN but there is a last message, default to other person (common in some data structures)
+              lastMessageSenderDisplayName = otherPersonsName;
+              lastMessageSenderAvatarDetails = otherPersonsAccountDetails;
           }
-        }
 
-        // Determine unread status (just placeholder logic for now)
-        const hasUnread = conversation.id.charCodeAt(0) % 3 === 0; // Just for demonstration
 
-        return (
-          <div
-            key={conversation.id}
-            onClick={() => onSelectConversation(conversation)}
-            className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-blue-50 transition-all duration-200 ${selectedConversation?.id === conversation.id
-              ? 'bg-blue-50 border-l-4 border-l-blue-500 shadow-sm'
-              : 'hover:shadow-sm'
+          // Format the timestamp
+          const lastActivityTime = conversation.lastActivityAtEpoch || conversation.lastActivityAt;
+          let formattedTime = "";
+          if (lastActivityTime) {
+            const timestamp = typeof lastActivityTime === 'string' ? parseInt(lastActivityTime) : lastActivityTime;
+            const date = new Date(timestamp);
+            if (!isNaN(date.getTime())) {
+              const isToday = new Date().toDateString() === date.toDateString();
+              formattedTime = isToday
+                ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                : date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+            }
+          }
+          
+          const hasUnread = conversation.id.charCodeAt(0) % 3 === 0; // Placeholder logic for unread messages
+
+          return (
+            <div
+              key={conversation.id}
+              onClick={() => onSelectConversation(conversation)}
+              className={`rounded-xl overflow-hidden shadow-sm cursor-pointer transition-all duration-200 transform ${
+                selectedConversation?.id === conversation.id
+                  ? 'bg-indigo-100 border-2 border-indigo-300 shadow-md scale-[1.01]'
+                  : 'bg-white hover:bg-gray-50 border border-gray-100'
               }`}
-          >
-            <div className="flex items-start space-x-3">
-              <Avatar className="w-12 h-12 ring-2 ring-gray-100">
-                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white font-semibold">
-                  {contactInitials || '??'}
-                </AvatarFallback>
-              </Avatar>
-
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-semibold text-gray-900 truncate text-sm">{contactName || 'Unknown Contact'}</h4>
-                  {hasUnread && (
-                    <Badge className="bg-blue-500 hover:bg-blue-600 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center shadow-sm">
-                      1
-                    </Badge>
-                  )}
-                </div>
-
-                <p className="text-xs text-gray-500 truncate mb-2 font-medium">
-                  LinkedIn Connection
-                </p>
-
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm text-gray-700 truncate flex-1 font-medium">
-                    {conversation.lastMessage?.text || "No messages"}
-                  </p>
-                  <span className="text-xs text-gray-400 ml-2 font-medium">
-                    {formattedDate}
-                  </span>
-                </div>
-
-                <div className="flex items-center">
-                  <Avatar className="w-4 h-4 mr-2">
-                    <AvatarFallback className="bg-blue-500 text-white text-xs">
-                      {primaryAccount.firstName?.[0] || 'Y'}
+            >
+              <div className="p-3">
+                {/* Contact info with improved spacing */}
+                <div className="flex space-x-3">
+                  <Avatar className="w-10 h-10 ring-2 ring-offset-2 ring-gray-100 flex-shrink-0">
+                    {otherPersonsProfileImage && (
+                      <AvatarImage
+                        src={otherPersonsProfileImage}
+                        alt={otherPersonsName}
+                        className="object-cover"
+                        referrerPolicy="no-referrer"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    )}
+                    <AvatarFallback className="bg-gray-200 text-gray-600 text-sm font-medium">
+                      {otherPersonsInitials}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="text-xs text-gray-500 font-medium">
-                    {lastMessageSentByUser ? primaryAccountName : contactName}
-                  </span>
-                  <div className="w-1 h-1 bg-blue-500 rounded-full ml-2"></div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-start">
+                      <h4 className="text-sm font-bold text-gray-900 truncate">{otherPersonsName}</h4>
+                      <span className="text-xs bg-gray-50 text-gray-500 px-1.5 py-0.5 rounded-full shrink-0">
+                        {formattedTime}
+                      </span>
+                    </div>
+                    
+                    <p className="text-xs text-gray-500 truncate mt-0.5">
+                      <span className="bg-indigo-50 text-indigo-700 px-1 py-0.5 rounded-sm text-[10px] font-medium mr-1">Via</span>
+                      <span className="font-medium">{appUsersAccountName}</span>
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Message preview with better visual grouping */}
+                <div className="mt-2 ml-12 pl-0.5 border-l-2 border-gray-100">
+                  <div className="flex items-center">
+                    <p className="text-sm text-gray-600 truncate pr-2 flex-grow pl-2">
+                      {conversation.lastMessage?.text || "No messages"}
+                    </p>
+                    {hasUnread && (
+                      <Badge className="bg-indigo-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center ml-1 shrink-0">
+                        1
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  {/* Last message sender with subtle background */}
+                  <div className="flex items-center mt-1.5 bg-gray-50/60 rounded-r-lg py-1 pl-2">
+                    <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center mr-1.5 overflow-hidden text-xs shrink-0">
+                      {lastMessageSenderAvatarDetails?.profileImageUrl ? (
+                        <img 
+                          src={lastMessageSenderAvatarDetails.profileImageUrl} 
+                          alt={lastMessageSenderDisplayName}
+                          className="w-full h-full object-cover"
+                          referrerPolicy="no-referrer"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                      ) : (
+                        <span className="text-[10px] text-gray-600 font-medium">
+                          {`${(lastMessageSenderAvatarDetails?.firstName?.[0] || '')}${(lastMessageSenderAvatarDetails?.lastName?.[0] || '')}`.toUpperCase() || '?'}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xs text-gray-500">
+                      {lastMessageSenderDisplayName}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 };

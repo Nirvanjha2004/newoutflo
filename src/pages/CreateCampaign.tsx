@@ -13,6 +13,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import DashboardLayout from '@/components/DashboardLayout';
 import { useQuery } from '@/common/api';
 import { getCampaignById } from '@/api/campaigns';
+import { useCampaignStore } from '@/api/store/campaignStore';
 
 // Campaign creation content component
 const CreateCampaignContent = () => {
@@ -20,11 +21,11 @@ const CreateCampaignContent = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const params = useParams();
-  
+
   // Check if we're in view mode (determined by URL path)
   const isViewMode = window.location.pathname.includes('/campaign/view/');
   const campaignId = params.id;
-  
+
   // Campaign data state
   const [campaignData, setCampaignData] = useState<Partial<Campaign>>({
     name: '',
@@ -34,11 +35,38 @@ const CreateCampaignContent = () => {
     accountIDs: [],
   });
 
+  const campaignStore = useCampaignStore();
+
+  // Add this effect to reset the store when component mounts
+  useEffect(() => {
+    // Only reset when creating a new campaign (not in view mode)
+    if (!isViewMode) {
+      // Replace the non-existent resetCampaign method with appropriate state reset
+      campaignStore.setState({
+        campaign: {
+          leads: {},
+          workflow: {
+            steps: []
+          },
+          senderAccounts: [],
+          accountIDs: [],
+          name: '',
+          description: '',
+          state: CampaignState.STOPPED,
+          leadListId: undefined
+        }
+      });
+    }
+  }, [isViewMode]);
+  
   // Track submission state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(isViewMode);
   const [loadError, setLoadError] = useState<string | null>(null);
-  
+  const campaignStoreState = useCampaignStore();
+
+  console.log("Campaign Store State:", campaignStoreState);
+
   // Fetch campaign data if in view mode
   useEffect(() => {
     if (isViewMode && campaignId) {
@@ -60,7 +88,7 @@ const CreateCampaignContent = () => {
         });
     }
   }, [isViewMode, campaignId]);
-  
+
   // Initialize campaign mutation
   const { mutate: createCampaign } = usePostCampaign();
 
@@ -90,7 +118,7 @@ const CreateCampaignContent = () => {
       setCurrentStep(currentStep + 1);
     }
   };
-  
+
   const updateCampaignData = (data: Partial<Campaign>) => {
     if (!isViewMode) {
       setCampaignData(prev => ({
@@ -99,18 +127,37 @@ const CreateCampaignContent = () => {
       }));
     }
   };
-  
+
   const handleSubmitCampaign = () => {
     if (isViewMode) return;
-    
+
     setIsSubmitting(true);
+    const leadListId = campaignStoreState.campaign.leads.leadListId;
     
+    // Get operational times from the store
+    const operationalTimes = campaignStoreState.campaign.operationalTimes;
+    
+    console.log("Operational Times from store:", operationalTimes);
+    // If operationalTimes is missing, create a default structure based on working hours
+    const defaultOperationalTimes = {
+      monday: { startTime: 32400, endTime: 61200, enabled: true },
+      tuesday: { startTime: 32400, endTime: 61200, enabled: true },
+      wednesday: { startTime: 32400, endTime: 61200, enabled: true },
+      thursday: { startTime: 32400, endTime: 61200, enabled: true },
+      friday: { startTime: 32400, endTime: 61200, enabled: true },
+      saturday: { startTime: 32400, endTime: 61200, enabled: true },
+      sunday: { startTime: 32400, endTime: 61200, enabled: true }
+    };
+
     // Update accountIDs based on selected senderAccounts
     const updatedCampaignData = {
       ...campaignData,
       accountIDs: campaignData.senderAccounts?.map(account => account.id) || [],
+      leadListId: leadListId || campaignData.leadListId || null,
+      operationalTimes: operationalTimes , // Add operational times from store
     };
-    
+
+    console.log("Submitting campaign data with operationalTimes:", updatedCampaignData);
     createCampaign(
       { CampaignData: updatedCampaignData as Campaign },
       {
@@ -146,7 +193,7 @@ const CreateCampaignContent = () => {
         </div>
       );
     }
-    
+
     if (loadError) {
       return (
         <div className="flex items-center justify-center h-64">
@@ -161,42 +208,42 @@ const CreateCampaignContent = () => {
         </div>
       );
     }
-    
+
     switch (currentStep) {
       case 1:
-        return <LinkedInSenders 
-                 selectedAccounts={campaignData.senderAccounts || []}
-                 updateAccounts={(accounts) => updateCampaignData({ senderAccounts: accounts })}
-                 viewMode={isViewMode} 
-               />;
+        return <LinkedInSenders
+          selectedAccounts={campaignData.senderAccounts || []}
+          updateAccounts={(accounts) => updateCampaignData({ senderAccounts: accounts })}
+          viewMode={isViewMode}
+        />;
       case 2:
-        return <ListOfLeads 
-                 leadData={campaignData.leads} 
-                 updateLeads={(leads) => updateCampaignData({ leads })}
-                 viewMode={isViewMode}
-               />;
+        return <ListOfLeads
+          leadData={campaignData.leads}
+          updateLeads={(leads) => updateCampaignData({ leads })}
+          viewMode={isViewMode}
+        />;
       case 3:
-        return <Sequence 
-                 workflowData={campaignData.workflow}
-                 updateWorkflow={(workflow) => updateCampaignData({ workflow })}
-                 operationalTimes={campaignData.localOperationalTimes}
-                 updateOperationalTimes={(times) => updateCampaignData({ localOperationalTimes: times })}
-                 viewMode={isViewMode}
-               />;
+        return <Sequence
+          workflowData={campaignData.workflow}
+          updateWorkflow={(workflow) => updateCampaignData({ workflow })}
+          operationalTimes={campaignData.localOperationalTimes}
+          updateOperationalTimes={(times) => updateCampaignData({ localOperationalTimes: times })}
+          viewMode={isViewMode}
+        />;
       case 4:
-        return <ReviewLaunch 
-                 campaignData={campaignData}
-                 updateCampaignData={updateCampaignData}
-                 onSubmit={handleSubmitCampaign}
-                 isSubmitting={isSubmitting}
-                 viewMode={isViewMode}
-               />;
+        return <ReviewLaunch
+          campaignData={campaignData}
+          updateCampaignData={updateCampaignData}
+          onSubmit={handleSubmitCampaign}
+          isSubmitting={isSubmitting}
+          viewMode={isViewMode}
+        />;
       default:
-        return <LinkedInSenders 
-                 selectedAccounts={campaignData.senderAccounts || []}
-                 updateAccounts={(accounts) => updateCampaignData({ senderAccounts: accounts })} 
-                 viewMode={isViewMode}
-               />;
+        return <LinkedInSenders
+          selectedAccounts={campaignData.senderAccounts || []}
+          updateAccounts={(accounts) => updateCampaignData({ senderAccounts: accounts })}
+          viewMode={isViewMode}
+        />;
     }
   };
 
@@ -224,7 +271,7 @@ const CreateCampaignContent = () => {
               </div>
             )}
           </div>
-          
+
           {!isViewMode && (
             currentStep < 4 ? (
               <Button
@@ -251,7 +298,7 @@ const CreateCampaignContent = () => {
           steps={steps}
           currentStep={currentStep}
           onStepChange={handleStepChange}
-          // The disabled prop is removed to allow clicking in view mode
+        // The disabled prop is removed to allow clicking in view mode
         />
 
         {/* Content */}

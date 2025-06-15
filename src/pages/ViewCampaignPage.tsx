@@ -212,7 +212,7 @@ const CampaignViewContent = () => {
 
     // Campaign data state
     const [campaignData, setCampaignData] = useState<Partial<Campaign> & { state?: CampaignState }>({});
-
+    console.log("Campaign ID from params:", campaignData);
     //console.log("Initial campaign data:", campaignData);
     const [leadFilterStatus, setLeadFilterStatus] = useState('all');
 
@@ -231,6 +231,8 @@ const CampaignViewContent = () => {
         refetch: refetchCampaign
     } = useCampaignByIdQuery(campaignId || '', { enabled: isViewMode && !!campaignId });
 
+
+    console.log("Fetched campaign data:", fetchedCampaign);
     // Use the insights query hook to get campaign metrics
 
     const {
@@ -864,7 +866,7 @@ const CampaignAnalyticsCards = ({
             icon: Send,
             bgColor: 'bg-purple-50',
             iconColor: 'text-purple-500',
-            filterStatus: 'success'  // Add filter status
+            filterStatus: 'followUp'  // Add filter status
         },
         {
             title: 'Responses',

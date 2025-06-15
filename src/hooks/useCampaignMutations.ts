@@ -12,6 +12,7 @@ export const usePostCampaign = () => {
     mutationKey: ["postCampaign"],
     mutationFn: async ({ CampaignData }) => await postCampaign(CampaignData),
 options: {
+  
       onSuccess: async () => {
         await Promise.all([
           queryClient.invalidateQueries({

@@ -129,7 +129,12 @@ export const postCampaign = async (campaignData: Campaign): Promise<GenericApiRe
   // Format account IDs as a JSON string array
   const accountIDs = campaignData.senderAccounts?.map((account) => account.id) || [];
   formData.append("accountIDs", JSON.stringify(accountIDs));
-  
+
+  // Add leadListId if it exists
+  if (campaignData.leadListId) {
+    formData.append("leadListId", campaignData.leadListId);
+  }
+
   // Format configs in the exact structure required by backend
   if (campaignData.configs && campaignData.configs.length > 0) {
     // Ensure delay values are in milliseconds (backend expects ms, not seconds)
@@ -176,10 +181,21 @@ export const postCampaign = async (campaignData: Campaign): Promise<GenericApiRe
   const startHour = campaignData.operationalTimes?.startTime || 3;
   const endHour = campaignData.operationalTimes?.endTime || 17;
   
+
+  console.log("Operational Times:", campaignData.operationalTimes);
+
+  const operationalTimes = campaignData.operationalTimes || {
+  monday: { startTime: 32400, endTime: 61200, enabled: true },
+  tuesday: { startTime: 32400, endTime: 61200, enabled: true },
+  wednesday: { startTime: 32400, endTime: 61200, enabled: true },
+  thursday: { startTime: 32400, endTime: 61200, enabled: true },
+  friday: { startTime: 32400, endTime: 61200, enabled: true },
+  saturday: { startTime: 32400, endTime: 61200, enabled: false },
+  sunday: { startTime: 32400, endTime: 61200, enabled: false }
+};
+
   formData.append("operationalTimes", JSON.stringify({
-    startTime: startHour,
-    endTime: endHour,
-    timezone: "GMT" // Always use GMT for backend
+    operationalTimes
   }));
 
   // Format local operational times exactly as shown in the image

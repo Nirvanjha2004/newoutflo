@@ -23,7 +23,7 @@ export enum LeadStatus {
   CONNECTION_RECEIVED = 'Connection Request Received',
   CONNECTION_ACCEPTED = 'Connection Accepted',
   INVITATION_EXISTS = 'Invitation Already Sent',
-  FOLLOW_UP = 'Follow-Up Needed',
+  FOLLOW_UP = 'Follow-Up',
   SUCCESS = 'Successfully Engaged',
   PAUSED = 'Campaign Paused',
   PROCESSING = 'In Progress',
@@ -302,7 +302,7 @@ const CampaignAnalytics = ({
 
         return {
           id: index,
-          name: lead.url || lead.firstName || '',
+          name: lead.firstName || '',
           status: mappedStatus,
           lastActivity: formattedDate,
           assignedAccount: accountName,
@@ -355,6 +355,8 @@ const CampaignAnalytics = ({
     return Array.from(new Set(allLeads.map(lead => lead.assignedAccount))).sort();
   }, [allLeads]);
 
+
+  console.log("Assigned Accounts:", assignedAccounts);
   // Add this after your existing state variables
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
 
@@ -395,7 +397,7 @@ const CampaignAnalytics = ({
       case 'invitationSent':
         return { label: 'Invitation Sent', className: 'bg-blue-100 text-blue-700 border-blue-200' };
       case 'followUp':
-        return { label: 'Follow-Up Needed', className: 'bg-amber-100 text-amber-700 border-amber-200' };
+        return { label: 'Follow-Up', className: 'bg-amber-100 text-amber-700 border-amber-200' };
       case 'success':
         return { label: 'Successfully Engaged', className: 'bg-green-100 text-green-700 border-green-200' };
       case 'paused':
@@ -484,7 +486,7 @@ const CampaignAnalytics = ({
       connected: 'Connected',
       //   connectionReceived: 'Connection Received',
       invitationSent: 'Invitation Sent',
-      followUp: 'Follow-Up Needed',
+      followUp: 'Follow-Up',
       success: 'Successfully Engaged',
       //   paused: 'Paused',
       //   processing: 'Processing',
@@ -920,7 +922,7 @@ const CampaignAnalytics = ({
                         <TableCell className="py-3 px-4">
                           {/* Show only the name or shortened URL */}
                           <span className="text-gray-900 font-medium">
-                            {lead.firstName || shortenLinkedInUrl(lead.url)}
+                            {lead.name || shortenLinkedInUrl(lead.url)}
                           </span>
                         </TableCell>
                         <TableCell className="py-3 px-4">

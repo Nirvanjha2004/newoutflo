@@ -152,8 +152,8 @@ const ListOfLeads = ({ leadData, updateLeads }: ListOfLeadsProps) => {
                         );
                         
                         // Regex patterns for LinkedIn URLs
-                        const linkedinProfileRegex = /^(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/[\w\-\.]+\/?(?:\?.*)?$/i;
-                        const linkedinCompanyRegex = /^(?:https?:\/\/)?(?:www\.)?linkedin\.com\/company\/[\w\-\.]+\/?(?:\?.*)?$/i;
+                        const linkedinProfileRegex = /^(?:https?:\/\/)?(?:www\.)?linkedin\.(?:com|co\.\w{2}|[a-z]{2})\/in\/[\w\-\.%+]+\/?(?:\?.*)?$/i;
+                        const linkedinCompanyRegex = /^(?:https?:\/\/)?(?:www\.)?linkedin\.(?:com|co\.\w{2}|[a-z]{2})\/company\/[\w\-\.%+]+\/?(?:\?.*)?$/i;
 
                         parsedCsvData.forEach((row, rowIndex) => {
                             urlColumns.forEach(colName => {
@@ -590,68 +590,84 @@ const ListOfLeads = ({ leadData, updateLeads }: ListOfLeadsProps) => {
         });
     };
 
-    // Add after verifyLeadData
+    // Update the continueAfterVerification function
+    const continueAfterVerification = async () => {
+      if (!parsedCsvData.length || !verificationResults) {
+        toast({
+          variant: "destructive",
+          title: "No data to process",
+          description: "Verification results are missing.",
+        });
+        return;
+      }
 
-    const continueAfterVerification = () => {
-        if (!parsedCsvData.length || !verificationResults) {
-            toast({
-                variant: "destructive",
-                title: "No data to process",
-                description: "Verification results are missing.",
-            });
-            return;
+      try {
+        // Find URL column names
+        const urlColumnNames = columnMappings
+          .filter(col => col.type === 'linkedin-url')
+          .map(col => col.columnName);
+
+        if (!urlColumnNames.length) {
+          // If no URL columns, continue with all data
+          setVerificationResults(null);
+          
+          // Turn off verification flag FIRST, before proceeding
+          setVerifySettings(prev => ({
+            ...prev,
+            verifyLeads: false
+          }));
+          
+          handleUploadAll();
+          return;
         }
 
-        try {
-            // Find URL column names
-            const urlColumnNames = columnMappings
-                .filter(col => col.type === 'linkedin-url')
-                .map(col => col.columnName);
+        // Get the list of row indexes with invalid URLs
+        const invalidRowIndexes = new Set(
+          verificationResults.urlsVerified.invalidUrls.map(item => item.row - 1) // -1 because rows are 1-indexed in results
+        );
 
-            if (!urlColumnNames.length) {
-                // If no URL columns, continue with all data
-                setVerificationResults(null);
-                handleUploadAll();
-                return;
-            }
+        console.log(`Found ${invalidRowIndexes.size} invalid URLs out of ${parsedCsvData.length} rows`);
+        
+        // Filter out rows with invalid LinkedIn URLs
+        const filteredData = parsedCsvData.filter((row, index) => !invalidRowIndexes.has(index));
 
-            // Get the list of row indexes with invalid URLs
-            const invalidRowIndexes = new Set(
-                verificationResults.urlsVerified.invalidUrls.map(item => item.row - 1) // -1 because rows are 1-indexed in results
-            );
+        console.log(`After filtering: ${filteredData.length} valid leads remaining`);
 
-            console.log(`Found ${invalidRowIndexes.size} invalid URLs out of ${parsedCsvData.length} rows`);
+        // Update the parsedCsvData with only valid entries
+        setParsedCsvData(filteredData);
 
-            // Filter out rows with invalid LinkedIn URLs
-            const filteredData = parsedCsvData.filter((row, index) => !invalidRowIndexes.has(index));
+        // Update validation counts
+        setValidRowsCount(filteredData.length);
 
-            console.log(`After filtering: ${filteredData.length} valid leads remaining`);
+        // Clear verification results immediately
+        setVerificationResults(null);
+        
+        // IMPORTANT: Turn off verification flag BEFORE calling handleUploadAll
+        // Use await to ensure state is updated before proceeding
+        await new Promise<void>(resolve => {
+          setVerifySettings(prev => {
+            const newSettings = { ...prev, verifyLeads: false };
+            resolve(); // Resolve after state is updated
+            return newSettings;
+          });
+        });
+        
+        // Show toast with filtering results
+        toast({
+          title: "Leads Filtered",
+          description: `Removed ${invalidRowIndexes.size} leads with invalid LinkedIn URLs. Continuing with ${filteredData.length} valid leads.`,
+        });
 
-            // Update the parsedCsvData with only valid entries
-            setParsedCsvData(filteredData);
-
-            // Update validation counts
-            setValidRowsCount(filteredData.length);
-
-            // Show toast with filtering results
-            toast({
-                title: "Leads Filtered",
-                description: `Removed ${invalidRowIndexes.size} leads with invalid LinkedIn URLs. Continuing with ${filteredData.length} valid leads.`,
-            });
-
-            // Clear verification results
-            setVerificationResults(null);
-
-            // Continue with upload process
-            handleUploadAll();
-        } catch (error) {
-            console.error('Error filtering invalid URLs:', error);
-            toast({
-                variant: "destructive",
-                title: "Error filtering data",
-                description: error instanceof Error ? error.message : "An unknown error occurred",
-            });
-        }
+        // Now call handleUploadAll with verifySettings.verifyLeads = false
+        handleUploadAll();
+      } catch (error) {
+        console.error('Error filtering invalid URLs:', error);
+        toast({
+          variant: "destructive",
+          title: "Error filtering data",
+          description: error instanceof Error ? error.message : "An unknown error occurred",
+        });
+      }
     };
 
     // Process the data according to column mappings and update the store
@@ -665,8 +681,12 @@ const ListOfLeads = ({ leadData, updateLeads }: ListOfLeadsProps) => {
             return;
         }
 
+        // IMPORTANT: Add this check to prevent infinite loop
+        // If verification results exist, we shouldn't verify again
+        const shouldVerify = verifySettings.verifyLeads && !verificationResults;
+
         // Check if verification is requested
-        if (verifySettings.verifyLeads) {
+        if (shouldVerify) {
             setIsVerifying(true);
 
             try {
@@ -716,14 +736,33 @@ const ListOfLeads = ({ leadData, updateLeads }: ListOfLeadsProps) => {
             // Get processed lead data from backend
             const processedData = response.data.processedLeads || [];
 
+            // Filter out invalid LinkedIn URLs from the processed data
+            const linkedinProfileRegex = /^(?:https?:\/\/)?(?:www\.)?linkedin\.(?:com|co\.\w{2}|[a-z]{2})\/in\/[\w\-\.%+]+\/?(?:\?.*)?$/i;
+            const linkedinCompanyRegex = /^(?:https?:\/\/)?(?:www\.)?linkedin\.(?:com|co\.\w{2}|[a-z]{2})\/company\/[\w\-\.%+]+\/?(?:\?.*)?$/i;
+
+            const originalCount = processedData.length;
+            const filteredProcessedData = processedData.filter(item => {
+              // If there's no LinkedIn URL, keep the lead
+              if (!item.linkedinUrl) return true;
+              
+              // Check if the URL matches either regex pattern
+              const isValidProfile = linkedinProfileRegex.test(item.linkedinUrl);
+              const isValidCompany = linkedinCompanyRegex.test(item.linkedinUrl);
+              
+              return isValidProfile || isValidCompany;
+            });
+
+            console.log(`Filtered ${originalCount - filteredProcessedData.length} leads with invalid LinkedIn URLs`);
+            console.log("Final processed data:", filteredProcessedData);
+
             // If backend processing failed, fall back to client-side processing
-            if (!processedData.length) {
+            if (!filteredProcessedData.length) {
                 console.log("Falling back to client-side processing");
                 return handleClientSideProcessing();
             }
 
-            // Convert processed data to Lead format for display
-            const formattedLeads: Lead[] = processedData.map((item: any) => ({
+            // Convert processed data to Lead format for display (use the filtered data)
+            const formattedLeads: Lead[] = filteredProcessedData.map((item: any) => ({
                 id: item.id || `imported-${nanoid()}`,
                 firstName: item.firstName || 'Unknown',
                 lastName: item.lastName || 'User',
@@ -737,29 +776,36 @@ const ListOfLeads = ({ leadData, updateLeads }: ListOfLeadsProps) => {
                 linkedinUrl: item.linkedinUrl,
             }));
 
+            
+            // Update the toast message to include filtering info
+            const removedCount = originalCount - filteredProcessedData.length;
+            const filterMessage = removedCount > 0 
+              ? ` (${removedCount} leads with invalid LinkedIn URLs were filtered out)`
+              : '';
+
             // Update the local leads state
             setLeads(formattedLeads);
 
-            // Create leads data object for store
+            // Create leads data object for store (use filtered data)
             const leadsData = {
-                file: uploadedFile?.fileObject || null,
-                fileName: uploadedFile?.name,
-                data: processedData,
-                rowCount: processedData.length,
-                s3Url: response.data.s3Url || null,
-                uploadedAt: new Date().toISOString(),
-                leadListId: response.data.leadListId
+              file: uploadedFile?.fileObject || null,
+              fileName: uploadedFile?.name,
+              data: filteredProcessedData, // Use filtered data here
+              rowCount: filteredProcessedData.length,
+              s3Url: response.data.s3Url || null,
+              uploadedAt: new Date().toISOString(),
+              leadListId: response.data.leadListId
             };
 
             // Update parent and store
             if (updateLeads) {
-                updateLeads(leadsData);
+              updateLeads(leadsData);
             }
             setLeadsData(leadsData);
 
             toast({
-                title: "Leads Successfully Imported",
-                description: `${processedData.length} leads are ready for your campaign.`,
+              title: "Leads Successfully Imported",
+              description: `${filteredProcessedData.length} leads are ready for your campaign${filterMessage}.`,
             });
 
             setShowLeadsGrid(true);
@@ -1161,21 +1207,27 @@ const ListOfLeads = ({ leadData, updateLeads }: ListOfLeadsProps) => {
                         </div>}
 
                         <Button
-                            onClick={handleUploadAll}
-                            className="bg-green-500 hover:bg-green-600 text-white px-8 py-3 text-base font-medium rounded-lg"
-                            disabled={isProcessing || isVerifying}
+                          onClick={handleUploadAll}
+                          className="bg-green-500 hover:bg-green-600 text-white px-8 py-3 text-base font-medium rounded-lg"
+                          disabled={isProcessing || isVerifying}
                         >
-                            {isProcessing ? (
-                                <div className="flex items-center space-x-2">
-                                    <span className="loading loading-spinner loading-xs"></span>
-                                    <span>PROCESSING...</span>
-                                </div>
-                            ) : isVerifying ? (
-                                <div className="flex items-center space-x-2">
-                                    <span className="loading loading-spinner loading-xs"></span>
-                                    <span>VERIFYING...</span>
-                                </div>
-                            ) : verifySettings.verifyLeads ? 'VERIFY & UPLOAD' : 'UPLOAD ALL'}
+                          {isProcessing ? (
+                            <div className="flex items-center space-x-2">
+                              <span className="loading loading-spinner loading-xs"></span>
+                              <span>PROCESSING...</span>
+                            </div>
+                          ) : isVerifying ? (
+                            <div className="flex items-center space-x-2">
+                              <span className="loading loading-spinner loading-xs"></span>
+                              <span>VERIFYING...</span>
+                            </div>
+                          ) : verificationResults ? (
+                            'UPLOAD VERIFIED LEADS'
+                          ) : verifySettings.verifyLeads ? (
+                            'VERIFY & UPLOAD'
+                          ) : (
+                            'UPLOAD ALL'
+                          )}
                         </Button>
                     </div>
                 </div>

@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Search, Star, Bell, MoreHorizontal, User } from "lucide-react";
+import { Search, Star, Bell, MoreHorizontal, User, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,7 @@ export const InboxContent = ({ selectedConversation, onSelectConversation, onPro
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isPendingFilter, setIsPendingFilter] = useState(false);
   const [isMyMessagesFilter, setIsMyMessagesFilter] = useState(false);
+  const [showAllAccounts, setShowAllAccounts] = useState(false);
   
   // Fetch accounts data
   const { data: accounts = [], isLoading: accountsLoading } = useAccountsQuery();
@@ -33,7 +34,6 @@ export const InboxContent = ({ selectedConversation, onSelectConversation, onPro
     // Filter for active accounts - adjust the criteria based on your data structure
     return accounts
       .filter(account => account?.status === "active" || account?.isActive)
-      .slice(0, 5) // Limit to 5 active accounts to avoid overcrowding
       .map(account => {
         const firstName = account?.firstName || '';
         const lastName = account?.lastName || '';
@@ -57,6 +57,15 @@ export const InboxContent = ({ selectedConversation, onSelectConversation, onPro
       });
   }, [accounts]);
 
+  // Get accounts to display (limited or all)
+  const visibleAccounts = useMemo(() => {
+    return showAllAccounts ? activeAccounts : activeAccounts.slice(0, 3);
+  }, [activeAccounts, showAllAccounts]);
+
+  const toggleAccountsVisibility = () => {
+    setShowAllAccounts(!showAllAccounts);
+  };
+
   return (
     <>
       <div className="w-96 bg-white border-r border-gray-200 flex flex-col shadow-sm">
@@ -65,15 +74,6 @@ export const InboxContent = ({ selectedConversation, onSelectConversation, onPro
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-xl font-bold text-gray-900 mb-1">Inbox</h1>
-              <div className="flex items-center space-x-2">
-                <div className="flex items-center space-x-1">
-                  <Bell size={12} className="text-orange-500" />
-                  <p className="text-xs text-orange-600 font-medium">Free trial ends in 7 days</p>
-                </div>
-                <Badge className="bg-orange-100 text-orange-700 text-xs px-2 py-0.5">
-                  Upgrade
-                </Badge>
-              </div>
             </div>
             
             <div className="flex items-center space-x-2">
@@ -129,13 +129,30 @@ export const InboxContent = ({ selectedConversation, onSelectConversation, onPro
             )}
           </div>
 
-          {/* Active Accounts Section with real data */}
+          {/* Active Accounts Section with dropdown */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xs font-medium text-gray-700">Active Accounts</h3>
-              <Button variant="ghost" size="sm" className="h-5 w-5 p-0">
-                <MoreHorizontal size={12} className="text-gray-400" />
-              </Button>
+              <div className="flex items-center space-x-1">
+                {activeAccounts.length > 3 && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-6 px-1.5 text-xs text-gray-500 hover:text-gray-700"
+                    onClick={toggleAccountsVisibility}
+                  >
+                    {showAllAccounts ? (
+                      <ChevronUp size={14} className="mr-1" />
+                    ) : (
+                      <ChevronDown size={14} className="mr-1" />
+                    )}
+                    {showAllAccounts ? 'Less' : 'More'}
+                  </Button>
+                )}
+                <Button variant="ghost" size="sm" className="h-5 w-5 p-0">
+                  <MoreHorizontal size={12} className="text-gray-400" />
+                </Button>
+              </div>
             </div>
             
             {accountsLoading ? (
@@ -144,11 +161,11 @@ export const InboxContent = ({ selectedConversation, onSelectConversation, onPro
                 <div className="w-20 h-5 bg-gray-100 animate-pulse rounded"></div>
               </div>
             ) : activeAccounts.length > 0 ? (
-              <div className="flex items-center space-x-2 overflow-x-auto pb-1 scrollbar-hide">
-                {activeAccounts.map((account) => (
+              <div className={`flex flex-wrap gap-2 transition-all duration-200 ${showAllAccounts ? 'max-h-48' : 'max-h-10'} overflow-hidden`}>
+                {visibleAccounts.map((account) => (
                   <div 
                     key={account.id} 
-                    className="flex items-center space-x-1 px-2 py-1 rounded-md hover:bg-gray-50 transition-colors flex-shrink-0"
+                    className="flex items-center space-x-1 px-2 py-1 rounded-md hover:bg-gray-50 border border-gray-100 transition-colors"
                   >
                     <Avatar className="w-5 h-5">
                       {account.profileImage ? (
@@ -163,6 +180,14 @@ export const InboxContent = ({ selectedConversation, onSelectConversation, onPro
                     <div className="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
                   </div>
                 ))}
+                {!showAllAccounts && activeAccounts.length > 3 && (
+                  <div 
+                    className="flex items-center px-2 py-1 rounded-md text-gray-500 hover:bg-gray-50 hover:text-gray-700 cursor-pointer"
+                    onClick={toggleAccountsVisibility}
+                  >
+                    <span className="text-xs">+{activeAccounts.length - 3} more</span>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="text-xs text-gray-500 py-1">No active accounts found</div>

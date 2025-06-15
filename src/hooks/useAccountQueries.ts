@@ -1,5 +1,5 @@
 import { useQuery } from "../common/api";
-import { getAccounts, getAccount } from "../api/accounts";
+import { getAccounts, getAccount, getAccountConfig } from "../api/accounts";
 import { Account } from "../types/accounts";
 import { useAuthStore } from "../api/store/authStore";
 
@@ -24,6 +24,28 @@ export const useAccountQuery = (accountId: string) => {
     queryFn: async () => (await getAccount(accountId)).data,
     options: {
       enabled: isAuthenticated,
+    },
+  });
+};
+
+// Add this new query hook
+export const useAccountConfigQuery = (accountId: string | undefined) => {
+  const { isAuthenticated } = useAuthStore();
+
+  return useQuery<{
+    maxConnectionRequestsPerDay: number;
+    maxMessagesPerDay: number;
+  }>({
+    queryKey: ["accounts", accountId, "config"],
+    queryFn: async () => {
+      if (!accountId) throw new Error("Account ID is required");
+      const response = await getAccountConfig(accountId);
+      return response.data;
+    },
+    options: {
+      enabled: isAuthenticated && Boolean(accountId),
+      // Don't refetch too often since limits aren't changed frequently
+      staleTime: 1000 * 60 * 5, // 5 minutes
     },
   });
 };

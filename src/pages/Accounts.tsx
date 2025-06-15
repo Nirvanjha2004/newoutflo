@@ -109,10 +109,16 @@ const AccountsContent = () => {
   // This ensures consistent profile images for the same account
   const getAccountProfileImage = (account: Account) => {
     // Return the actual profile image if it exists
+
+    // console.log("The current acccount is "  , account)
+    // console.log("the current profile image is ", account.profileImageUrl)
     if (account.profileImageUrl) {
-      return account.profileImageUrl;
+      const cleanUrl = account.profileImageUrl.replace(/"/g, '');
+      return cleanUrl;
     }
-    
+
+    // console.log("The Profile image url is",account.profileImageUrl)
+
     // Otherwise, use the deterministic random image as fallback
     const hash = account.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
     const imageIndex = (hash % 13) + 1; // 1-13 range
@@ -251,6 +257,8 @@ const AccountsContent = () => {
                         src={getAccountProfileImage(account)}
                         alt={fullName}
                         className="h-full w-full object-cover"
+                        referrerPolicy="no-referrer" // Add this line
+                        loading="lazy" // Add this line
                         onError={(e) => {
                           // If image fails to load, remove it so fallback can show
                           e.currentTarget.style.display = 'none';

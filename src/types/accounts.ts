@@ -22,6 +22,10 @@ export type Account = {
   };
   campaignFailures?: number;
   profileImageUrl?: string;
+  configLimits?: {  
+    maxConnectionRequestsPerDay?: number;
+    maxMessagesPerDay?: number;
+  };
 };
 
 export type GetAccountsResponse = {

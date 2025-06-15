@@ -5,13 +5,16 @@ import {
   DrawerContent,
   DrawerHeader,
   DrawerTitle,
+  DrawerClose,
   DrawerFooter,
 } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
-import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Account } from '@/types/accounts';
+import { useUpdateAccountLimitsMutation } from "@/hooks/useAccountMutations";
+import { useAccountConfigQuery } from "@/hooks/useAccountQueries";
 import { toast } from "@/components/ui/use-toast";
 
 interface SenderLimitsDrawerProps {
@@ -21,25 +24,44 @@ interface SenderLimitsDrawerProps {
 }
 
 const SenderLimitsDrawer = ({ isOpen, onClose, account }: SenderLimitsDrawerProps) => {
-  // Initialize state with default values
-  const [maxFollows, setMaxFollows] = useState([40]);
-  const [maxMessages, setMaxMessages] = useState([40]);
-  const [maxInMail, setMaxInMail] = useState([40]);
-  const [maxConnections, setMaxConnections] = useState([25]);
-  const [maxProfileViews, setMaxProfileViews] = useState([40]);
+  // Initialize with real account limits from the backend
+  const [connectionsLimit, setConnectionsLimit] = useState<number>(0);
+  const [messagesLimit, setMessagesLimit] = useState<number>(0);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Fetch account configuration
+  const { 
+    data: configData,
+    isLoading: configLoading,
+    error: configError
+  } = useAccountConfigQuery(account?.id);
+  
+  // Initialize mutation hook
+  const updateLimits = useUpdateAccountLimitsMutation();
 
-  // Update slider values when account changes
+  // Update state when account changes or config data loads
   useEffect(() => {
-    if (account) {
-      // Initialize from account limits if available
-      setMaxFollows([account.limits?.maxFollows || 40]);
-      setMaxMessages([account.limits?.maxMessages || 40]);
-      setMaxInMail([account.limits?.maxInMail || 40]);
-      setMaxConnections([account.limits?.maxConnections || 25]);
-      setMaxProfileViews([account.limits?.maxProfileViews || 40]);
+    if (configData) {
+      // Use the data from config endpoint
+      setConnectionsLimit(configData.maxConnectionRequestsPerDay || 0);
+      setMessagesLimit(configData.maxMessagesPerDay || 0);
+    } else if (account) {
+      // Fallback to account data if config isn't available yet
+      setConnectionsLimit(
+        account.configLimits?.maxConnectionRequestsPerDay || 
+        account.accountActions?.dailyConnectionLimit ||
+        0
+      );
+      setMessagesLimit(
+        account.configLimits?.maxMessagesPerDay || 
+        account.accountActions?.dailyMessageLimit ||
+        0
+      );
     }
-  }, [account]);
+  }, [account, configData]);
+
+  // Show loading state
+  const showLoading = configLoading && !configData;
 
   // Get initials for avatar fallback
   const getInitials = () => {
@@ -48,26 +70,25 @@ const SenderLimitsDrawer = ({ isOpen, onClose, account }: SenderLimitsDrawerProp
   };
 
   // Handle save limits
-  const handleSaveLimits = async () => {
+  const handleSave = async () => {
     if (!account) return;
     
     setIsSaving(true);
     try {
-      // Here you would call your API to update the account limits
-      // For example:
-      // await updateAccountLimits(account.id, {
-      //   maxFollows: maxFollows[0],
-      //   maxMessages: maxMessages[0],
-      //   maxInMail: maxInMail[0],
-      //   maxConnections: maxConnections[0],
-      //   maxProfileViews: maxProfileViews[0]
-      // });
+      // Make sure these parameter names match what the backend expects
+      const response = await updateLimits.mutateAsync({
+        accountId: account.id,
+        maxConnectionRequestsPerDay: connectionsLimit,
+        maxMessagesPerDay: messagesLimit
+      });
       
-      // Show success toast
+      console.log("Limits updated successfully:", response);
+      
       toast({
         title: "Limits updated",
-        description: "Account limits have been saved successfully.",
+        description: "Account sending limits have been updated successfully.",
       });
+      
       onClose();
     } catch (error) {
       console.error("Failed to update limits:", error);
@@ -118,6 +139,24 @@ const SenderLimitsDrawer = ({ isOpen, onClose, account }: SenderLimitsDrawerProp
             </div>
           </div>
 
+          {/* Show loading state */}
+          {showLoading && (
+            <div className="flex items-center justify-center py-4">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              <span className="ml-2 text-sm text-gray-500">Loading configuration...</span>
+            </div>
+          )}
+          
+          {/* Show error if any */}
+          {configError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <p className="text-sm text-red-700">
+                <strong>Error:</strong> Could not load account configuration.
+                Please try again later.
+              </p>
+            </div>
+          )}
+
           {/* Note */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <p className="text-sm text-blue-700">
@@ -130,56 +169,48 @@ const SenderLimitsDrawer = ({ isOpen, onClose, account }: SenderLimitsDrawerProp
           <div className="space-y-6">
             {/* Max Follows/day */}
             <div className="space-y-3">
-              <label className="block text-sm font-medium text-gray-700">
-                Max Follows/day
-              </label>
+              <Label htmlFor="connectionsLimit" className="block text-sm font-medium text-gray-700">
+                Maximum connection requests per day
+              </Label>
               <div className="flex items-center space-x-4">
                 <div className="flex-1">
-                  <Slider
-                    value={maxFollows}
-                    onValueChange={setMaxFollows}
-                    max={40}
+                  <Input
+                    id="connectionsLimit"
+                    type="number"
+                    value={connectionsLimit}
+                    onChange={(e) => setConnectionsLimit(Number(e.target.value))}
                     min={0}
-                    step={1}
-                    className="w-full"
+                    max={100}
+                    className="w-full h-10 text-sm"
                   />
                 </div>
-                <Input
-                  type="number"
-                  value={maxFollows[0]}
-                  onChange={(e) => setMaxFollows([parseInt(e.target.value) || 0])}
-                  className="w-16 h-8 text-sm"
-                  min={0}
-                  max={40}
-                />
               </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Recommended: 20-25 per day to avoid LinkedIn restrictions
+              </p>
             </div>
 
             {/* Max Messages/day */}
             <div className="space-y-3">
-              <label className="block text-sm font-medium text-gray-700">
-                Max Messages/day
-              </label>
+              <Label htmlFor="messagesLimit" className="block text-sm font-medium text-gray-700">
+                Maximum messages per day
+              </Label>
               <div className="flex items-center space-x-4">
                 <div className="flex-1">
-                  <Slider
-                    value={maxMessages}
-                    onValueChange={setMaxMessages}
-                    max={40}
+                  <Input
+                    id="messagesLimit"
+                    type="number"
+                    value={messagesLimit}
+                    onChange={(e) => setMessagesLimit(Number(e.target.value))}
                     min={0}
-                    step={1}
-                    className="w-full"
+                    max={100}
+                    className="w-full h-10 text-sm"
                   />
                 </div>
-                <Input
-                  type="number"
-                  value={maxMessages[0]}
-                  onChange={(e) => setMaxMessages([parseInt(e.target.value) || 0])}
-                  className="w-16 h-8 text-sm"
-                  min={0}
-                  max={40}
-                />
               </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Recommended: Maximum 50 messages per day
+              </p>
             </div>
           </div>
         </div>
@@ -187,12 +218,15 @@ const SenderLimitsDrawer = ({ isOpen, onClose, account }: SenderLimitsDrawerProp
         {/* Add Footer with Save button */}
         <DrawerFooter className="border-t border-gray-200 p-6">
           <Button 
-            onClick={handleSaveLimits} 
+            onClick={handleSave} 
             className="w-full bg-primary hover:bg-primary/90"
-            disabled={isSaving}
+            disabled={isSaving || updateLimits.isPending}
           >
-            {isSaving ? "Saving..." : "Save Limits"}
+            {isSaving || updateLimits.isPending ? "Saving..." : "Save Limits"}
           </Button>
+          <DrawerClose asChild>
+            <Button variant="outline" onClick={onClose}>Cancel</Button>
+          </DrawerClose>
         </DrawerFooter>
       </DrawerContent>
     </Drawer>

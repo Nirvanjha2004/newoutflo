@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { del } from "../common/api";
+import { del, put } from "../common/api";
 import { checkUnauthorized } from "../common/api";
+import { updateAccountLimits } from "../api/accounts";
 
 interface ApiResponse {
   Status: number;
@@ -30,4 +31,31 @@ export const useDeleteAccountMutation = () => {
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
     }
   });
-}; 
+};
+
+export const useUpdateAccountLimitsMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ 
+      accountId, 
+      maxConnectionRequestsPerDay, 
+      maxMessagesPerDay 
+    }: { 
+      accountId: string; 
+      maxConnectionRequestsPerDay: number; 
+      maxMessagesPerDay: number; 
+    }) => {
+      const response = await updateAccountLimits(accountId, {
+        maxConnectionRequestsPerDay,
+        maxMessagesPerDay
+      });
+      
+      return response.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['accounts', variables.accountId] });
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+    }
+  });
+};
