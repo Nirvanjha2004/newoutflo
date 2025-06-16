@@ -262,9 +262,23 @@ const CreateCampaignContent = () => {
               <ArrowLeft className="w-4 h-4 mr-2" />
               {isViewMode ? 'Back to Campaigns' : 'Back'}
             </Button>
-            <h1 className="text-2xl font-semibold text-gray-900">
-              {isViewMode ? `View Campaign: ${campaignData.name || ''}` : 'Create Campaign'}
-            </h1>
+            
+            {isViewMode ? (
+              <h1 className="text-2xl font-semibold text-gray-900">
+                View Campaign: {campaignData.name || ''}
+              </h1>
+            ) : (
+              <div className="flex items-center">
+                <input
+                  type="text"
+                  placeholder="Enter campaign name..."
+                  value={campaignData.name || ''}
+                  onChange={(e) => updateCampaignData({ name: e.target.value })}
+                  className="text-2xl font-semibold text-gray-900 border-b-2 border-gray-300 focus:border-purple-500 focus:outline-none bg-transparent px-1 py-0.5 w-80"
+                />
+              </div>
+            )}
+            
             {isViewMode && (
               <div className="ml-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
                 View Only

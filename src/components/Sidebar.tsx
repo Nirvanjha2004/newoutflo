@@ -33,13 +33,13 @@ interface SidebarProps {
 
 export const Sidebar = ({ isExpanded, onToggle, activePage = 'campaigns' }: SidebarProps) => {
   const sidebarItems = [
-    { icon: LayoutDashboard, path: "/", name: "Dashboard", id: "dashboard" },
+    // { icon: LayoutDashboard, path: "/", name: "Dashboard", id: "dashboard" },
     { icon: MessageSquare, path: "/inbox", name: "Inbox", id: "inbox" },
     { icon: Users, path: "/accounts", name: "Accounts", id: "accounts" },
     { icon: ListPlus, path: "/allcampaigns", name: "Campaigns", id: "campaigns" },
-    { icon: Calendar, path: "/calendar", name: "Calendar", id: "calendar" },
-    { icon: BarChart3, path: "/analytics", name: "Analytics", id: "analytics" },
-    { icon: Settings, path: "/settings", name: "Settings", id: "settings" },
+    // { icon: Calendar, path: "/calendar", name: "Calendar", id: "calendar" },
+    // { icon: BarChart3, path: "/analytics", name: "Analytics", id: "analytics" },
+    // { icon: Settings, path: "/settings", name: "Settings", id: "settings" },
   ];
 
   // Get user data from auth store

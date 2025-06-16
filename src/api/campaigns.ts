@@ -155,7 +155,7 @@ export const postCampaign = async (campaignData: Campaign): Promise<GenericApiRe
     // Format as JSON string exactly as shown in the image
     formData.append("configs", JSON.stringify(formattedConfigs));
     
-    console.log('Formatted configs for API:', JSON.stringify(formattedConfigs));
+    // console.log('Formatted configs for API:', JSON.stringify(formattedConfigs));
   } else if (campaignData.workflow?.steps) {
     // Convert from the old workflow.steps format if needed
     console.log('Converting workflow steps to configs:', campaignData.workflow.steps);
@@ -182,7 +182,7 @@ export const postCampaign = async (campaignData: Campaign): Promise<GenericApiRe
   const endHour = campaignData.operationalTimes?.endTime || 17;
   
 
-  console.log("Operational Times:", campaignData.operationalTimes);
+  console.log("Operational Times in campaigns.ts is :", campaignData.operationalTimes);
 
   const operationalTimes = campaignData.operationalTimes || {
   monday: { startTime: 32400, endTime: 61200, enabled: true },
@@ -201,7 +201,7 @@ export const postCampaign = async (campaignData: Campaign): Promise<GenericApiRe
   // Format local operational times exactly as shown in the image
   const localStartHour = campaignData.localOperationalTimes?.startTime || 9;
   const localEndHour = campaignData.localOperationalTimes?.endTime || 23;
-  const userTimezone = campaignData.timezone || "IST";
+  const userTimezone = campaignData.timezone || "GMT";
   
   formData.append("localOperationalTimes", JSON.stringify({
     startTime: localStartHour,

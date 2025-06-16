@@ -10,6 +10,88 @@ import { Campaign } from '@/types/campaigns';
 import { useCampaignStore } from '@/api/store/campaignStore/campaign';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { format } from 'date-fns';
+import { DateTime } from 'luxon';
+
+
+
+export const zoneMap = {
+  // UTC/GMT
+  GMT: 'Etc/GMT',
+  UTC: 'Etc/UTC',
+  'Greenwich Mean Time': 'Etc/GMT',
+  'Coordinated Universal Time': 'Etc/UTC',
+
+  // India
+  IST: 'Asia/Kolkata',
+  'Indian Standard Time': 'Asia/Kolkata',
+
+  // US Time Zones
+  EST: 'America/New_York',
+  'Eastern Standard Time': 'America/New_York',
+  EDT: 'America/New_York',
+  'Eastern Daylight Time': 'America/New_York',
+
+  CST: 'America/Chicago',
+  'Central Standard Time': 'America/Chicago',
+  CDT: 'America/Chicago',
+  'Central Daylight Time': 'America/Chicago',
+
+  MST: 'America/Denver',
+  'Mountain Standard Time': 'America/Denver',
+  MDT: 'America/Denver',
+  'Mountain Daylight Time': 'America/Denver',
+
+  PST: 'America/Los_Angeles',
+  'Pacific Standard Time': 'America/Los_Angeles',
+  PDT: 'America/Los_Angeles',
+  'Pacific Daylight Time': 'America/Los_Angeles',
+
+  // Europe
+  CET: 'Europe/Paris',
+  'Central European Time': 'Europe/Paris',
+  CEST: 'Europe/Paris',
+  'Central European Summer Time': 'Europe/Paris',
+
+  BST: 'Europe/London',
+  'British Summer Time': 'Europe/London',
+
+  EET: 'Europe/Bucharest',
+  'Eastern European Time': 'Europe/Bucharest',
+  EEST: 'Europe/Bucharest',
+  'Eastern European Summer Time': 'Europe/Bucharest',
+
+  // Australia
+  AEST: 'Australia/Sydney',
+  'Australian Eastern Standard Time': 'Australia/Sydney',
+  AEDT: 'Australia/Sydney',
+  'Australian Eastern Daylight Time': 'Australia/Sydney',
+
+  ACST: 'Australia/Adelaide',
+  'Australian Central Standard Time': 'Australia/Adelaide',
+
+  AWST: 'Australia/Perth',
+  'Australian Western Standard Time': 'Australia/Perth',
+
+  // China
+  CST_CHINA: 'Asia/Shanghai',
+  'China Standard Time': 'Asia/Shanghai',
+
+  // Japan
+  JST: 'Asia/Tokyo',
+  'Japan Standard Time': 'Asia/Tokyo',
+
+  // Russia
+  MSK: 'Europe/Moscow',
+  'Moscow Standard Time': 'Europe/Moscow',
+
+  // Middle East
+  AST: 'Asia/Riyadh',
+  'Arabian Standard Time': 'Asia/Riyadh',
+
+  // Africa
+  'South Africa Standard Time': 'Africa/Johannesburg',
+  SAST: 'Africa/Johannesburg'
+};
 
 interface ReviewLaunchProps {
   campaignData: Partial<Campaign>;
@@ -19,10 +101,10 @@ interface ReviewLaunchProps {
   viewMode?: boolean; // Added viewMode prop
 }
 
-const ReviewLaunch: React.FC<ReviewLaunchProps> = ({ 
-  campaignData, 
-  updateCampaignData, 
-  onSubmit, 
+const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
+  campaignData,
+  updateCampaignData,
+  onSubmit,
   isSubmitting,
   viewMode = false
 }) => {
@@ -31,13 +113,13 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
     campaign: state.campaign,
     configs: state.configs // Add this line to access configs directly
   }));
-  
+
   console.log('Store Data in ReviewLaunch:', storeData);
   console.log("Campaign Data from props:", campaignData);
-  
+
   // IMPORTANT: Extract all the actions you need from the store
   const { setWorkingHours, setOperationalTimes } = useCampaignStore();
-  
+
   // Initialize with default working hours
   const defaultWorkingHours = {
     Sunday: { enabled: false, slots: [{ from: '09:00', to: '17:00' }] },
@@ -48,7 +130,7 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
     Friday: { enabled: true, slots: [{ from: '09:00', to: '17:00' }] },
     Saturday: { enabled: false, slots: [{ from: '09:00', to: '17:00' }] },
   };
-  
+
   // Use campaignData's workingHours if available, otherwise use defaults
   const [workingHours, setWorkingHoursState] = useState(
     campaignData?.workingHours || defaultWorkingHours
@@ -71,11 +153,11 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
       // Also update the store
       setWorkingHours(campaignData.workingHours);
     }
-    
+
     if (campaignData?.timezone) {
       setTimezone(campaignData.timezone);
     }
-    
+
     // In view mode, ensure all sections are open
     if (viewMode) {
       setIsLeadListOpen(true);
@@ -85,18 +167,23 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
     }
   }, [campaignData, viewMode, setWorkingHours]);
 
+
+
+
+
+
   // Improved data extraction based on the actual store structure
   // For lead data - directly access from the store
   const leadCount = Array.isArray(campaignData?.leads)
     ? campaignData.leads.length
-    : campaignData?.leads?.data?.length || 
-      storeData?.campaign.leads?.data?.length || 
-      0;
-  
-  const leadListName = storeData?.campaign.leads?.fileName || 
-                      campaignData?.leads?.fileName ||
-                      (campaignData?.name ? `${campaignData.name} List` : 'Lead List');
-  
+    : campaignData?.leads?.data?.length ||
+    storeData?.campaign.leads?.data?.length ||
+    0;
+
+  const leadListName = storeData?.campaign.leads?.fileName ||
+    campaignData?.leads?.fileName ||
+    (campaignData?.name ? `${campaignData.name} List` : 'Lead List');
+
   // For sender accounts - corrected accessor
   const extractSenderAccounts = () => {
     // Check for nested arrays in senderAccounts or accounts
@@ -106,8 +193,8 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
         return campaignData.senderAccounts.flat();
       }
       return campaignData.senderAccounts;
-    } 
-    
+    }
+
     if (Array.isArray(campaignData?.accounts)) {
       // Handle nested array structure
       if (campaignData.accounts.length > 0 && Array.isArray(campaignData.accounts[0])) {
@@ -115,12 +202,12 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
       }
       return campaignData.accounts;
     }
-    
+
     // Try to get accounts from store if available
     if (storeData?.campaign?.senderAccounts) {
       return storeData.campaign.senderAccounts;
     }
-    
+
     // Check if we have accountIDs that we can use
     if (Array.isArray(campaignData?.accountIDs) && campaignData.accountIDs.length > 0) {
       // Return basic placeholder accounts using IDs
@@ -131,7 +218,7 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
         email: `account-${id.substring(0, 6)}`
       }));
     }
-    
+
     return [];
   };
 
@@ -143,7 +230,7 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
     console.log("Getting workflow steps, viewMode:", viewMode);
     console.log("Store data workflow:", storeData.campaign.configs);
     console.log("Campaign data workflow:", campaignData?.workflow);
-    
+
     // VIEW MODE: Prioritize campaignData.workflow.configs
     if (viewMode) {
       if (campaignData?.workflow?.configs?.length) {
@@ -171,7 +258,7 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
           return null;
         }).filter(Boolean);
       }
-    } 
+    }
     // CREATION MODE: First check the configs array directly in the store
     // This matches the format seen in the console log
     else {
@@ -190,7 +277,7 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
             const delaySeconds = config.data?.delay || 0;
             // Convert seconds to days (86400 seconds = 1 day)
             const delayDays = Math.floor(delaySeconds / (24 * 60 * 60));
-            
+
             return {
               type: 'followup',
               title: `Follow-Up ${index}`,
@@ -201,7 +288,7 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
           return null;
         }).filter(Boolean);
       }
-      
+
       // Fallback to campaignData.workflow.configs if store doesn't have data
       if (campaignData?.workflow?.configs?.length) {
         return campaignData.workflow.configs.map((config: any, index: number) => {
@@ -209,7 +296,7 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
             return {
               type: 'connection',
               title: 'Connection Request',
-              subtitle: 'Initial outreach message', 
+              subtitle: 'Initial outreach message',
               content: config.data?.text || ''
             };
           } else if (config.action === "sendFollowUp") {
@@ -225,7 +312,7 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
           return null;
         }).filter(Boolean);
       }
-      
+
       // Also check for steps format directly in campaignData
       if (campaignData?.workflow?.steps?.length) {
         return campaignData.workflow.steps.map((step: any, index: number) => {
@@ -250,22 +337,22 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
         }).filter(Boolean);
       }
     }
-    
+
     // Default steps if nothing available
     return [];
   };
-  
+
   const workflowSteps = getWorkflowSteps();
 
   // Update working hours in both state and store - skip in view mode
   const toggleDay = (day: string) => {
     if (viewMode) return; // Skip in view mode
-    
+
     const updatedHours = {
       ...workingHours,
       [day]: { ...workingHours[day as keyof typeof workingHours], enabled: !workingHours[day as keyof typeof workingHours].enabled }
     };
-    
+
     setWorkingHoursState(updatedHours);
     updateCampaignData({ workingHours: updatedHours });
     setWorkingHours(updatedHours);
@@ -273,25 +360,32 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
 
   const updateTimeSlot = (day: string, slotIndex: number, field: 'from' | 'to', value: string) => {
     if (viewMode) return; // Skip in view mode
-    
+
     const updatedHours = {
       ...workingHours,
       [day]: {
         ...workingHours[day as keyof typeof workingHours],
-        slots: workingHours[day as keyof typeof workingHours].slots.map((slot, index) => 
+        slots: workingHours[day as keyof typeof workingHours].slots.map((slot, index) =>
           index === slotIndex ? { ...slot, [field]: value } : slot
         )
       }
     };
-    
+
+    // Update the local state and campaign data
     setWorkingHoursState(updatedHours);
     updateCampaignData({ workingHours: updatedHours });
     setWorkingHours(updatedHours);
+
+    // Get the IANA timezone identifier from our mapping
+    const ianaZone = zoneMap[timezone] || 'Etc/UTC';
+
+    // Also convert all times to GMT for the store
+    convertAllTimesToGMT(updatedHours, ianaZone);
   };
 
   const addTimeSlot = (day: string) => {
     if (viewMode) return; // Skip in view mode
-    
+
     const updatedHours = {
       ...workingHours,
       [day]: {
@@ -299,7 +393,7 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
         slots: [...workingHours[day as keyof typeof workingHours].slots, { from: '09:00', to: '17:00' }]
       }
     };
-    
+
     setWorkingHoursState(updatedHours);
     updateCampaignData({ workingHours: updatedHours });
     setWorkingHours(updatedHours);
@@ -307,15 +401,15 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
 
   const applyToAllDays = (day: string) => {
     if (viewMode) return; // Skip in view mode
-    
+
     const template = workingHours[day as keyof typeof workingHours];
     const newHours = Object.fromEntries(
       Object.keys(workingHours).map(dayKey => [
-        dayKey, 
+        dayKey,
         { ...template }
       ])
     ) as typeof workingHours;
-    
+
     setWorkingHoursState(newHours);
     updateCampaignData({ workingHours: newHours });
     setWorkingHours(newHours);
@@ -323,99 +417,128 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
 
   const handleTimezoneChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     if (viewMode) return; // Skip in view mode
-    
+
     const newTimezone = e.target.value;
     setTimezone(newTimezone);
     updateCampaignData({ timezone: newTimezone });
-    
+
+    // Get the IANA timezone identifier from our mapping
+    const ianaZone = zoneMap[newTimezone] || 'Etc/UTC';
+
+    // Convert all existing time slots to the new timezone and then to GMT
+    convertAllTimesToGMT(workingHours, ianaZone);
+  };
+
+  // Add this new function to handle time conversion
+  const convertAllTimesToGMT = (hours: any, selectedTimezone: string) => {
+    // Create a deep copy of the working hours
+    const updatedHours = { ...hours };
+    const operationalTimesGMT = {};
+
+    // Get today's date as string for DateTime creation
+    const today = new Date().toISOString().split('T')[0];
+
+    // Process each day's time slots
+    Object.entries(updatedHours).forEach(([day, config]: [string, any]) => {
+      const dayLower = day.toLowerCase();
+
+      if (config.enabled && config.slots.length > 0) {
+        // For each enabled day, convert times to GMT
+        const slot = config.slots[0]; // Use first slot (we can enhance for multiple slots)
+
+        // Create DateTime objects in the user's selected timezone
+        const startDateTime = DateTime.fromFormat(`${today}T${slot.from}`, "yyyy-MM-dd'T'HH:mm", {
+          zone: selectedTimezone
+        });
+
+        const endDateTime = DateTime.fromFormat(`${today}T${slot.to}`, "yyyy-MM-dd'T'HH:mm", {
+          zone: selectedTimezone
+        });
+
+        // Convert to GMT/UTC
+        const startGMT = startDateTime.toUTC();
+        const endGMT = endDateTime.toUTC();
+
+        // Convert to seconds since midnight (API format)
+        const startTime = startGMT.hour * 3600 + startGMT.minute * 60;
+        const endTime = endGMT.hour * 3600 + endGMT.minute * 60;
+
+        // Handle day wrapping for times that cross midnight in GMT
+        const wrapsNextDay = endTime < startTime;
+
+        operationalTimesGMT[dayLower] = {
+          startTime,
+          endTime: wrapsNextDay ? endTime + 86400 : endTime, // Add 24 hours if it wraps
+          enabled: true
+        };
+      } else {
+        // For disabled days, use default values
+        operationalTimesGMT[dayLower] = {
+          startTime: 9 * 3600, // 9 AM in seconds
+          endTime: 17 * 3600,  // 5 PM in seconds
+          enabled: false
+        };
+      }
+    });
+
+    // Save the GMT times to the store
+    console.log("Saving GMT operational times to store:", operationalTimesGMT);
     if (setOperationalTimes) {
-      setOperationalTimes({
-        ...storeData.operationalTimes,
-        timezone: newTimezone
-      });
+      setOperationalTimes(operationalTimesGMT);
     }
   };
 
   const handleLaunch = () => {
     if (viewMode) return; // Skip in view mode
-    
-    if (confirmDetails && !isSubmitting) {
-      // Generate operational times for API
-      const operationalTimes = {};
-      
-      Object.entries(workingHours).forEach(([dayName, config]) => {
-        const dayLower = dayName.toLowerCase();
-        if (config.enabled && config.slots.length > 0) {
-          // Convert HH:MM to seconds for API
-          const startHour = parseInt(config.slots[0].from.split(':')[0]);
-          const startMinute = parseInt(config.slots[0].from.split(':')[1]);
-          const endHour = parseInt(config.slots[0].to.split(':')[0]);
-          const endMinute = parseInt(config.slots[0].to.split(':')[1]);
-          
-          const startTime = (startHour * 3600) + (startMinute * 60);
-          const endTime = (endHour * 3600) + (endMinute * 60);
-          
-          operationalTimes[dayLower] = {
-            startTime,
-            endTime,
-            enabled: true
-          };
-        } else {
-          operationalTimes[dayLower] = {
-            startTime: 9 * 3600, // 9 AM in seconds
-            endTime: 17 * 3600,  // 5 PM in seconds
-            enabled: false
-          };
-        }
-      });
 
-      console.log("Setting operational times:", operationalTimes);
-      
-      if (setOperationalTimes) {
-        setOperationalTimes(operationalTimes);
-      }
-      
-      // onSubmit();
+    if (confirmDetails && !isSubmitting) {
+      // Get the IANA timezone identifier
+      const ianaZone = zoneMap[timezone] || 'Etc/UTC';
+
+      // Convert times to GMT for final submission
+      convertAllTimesToGMT(workingHours, ianaZone);
+
+      onSubmit();
     }
   };
 
   // Render the campaign status badge based on current campaign state
   const renderCampaignStatus = () => {
-      const state = campaignData?.state;
-  let status = 'draft';
-  
-  // Handle either string or enum type safely
-  if (typeof state === 'string') {
-    status = state.toLowerCase();
-  } else if (state !== undefined) {
-    // If it's an enum, convert to string
-    status = String(state).toLowerCase();
-  }
+    const state = campaignData?.state;
+    let status = 'draft';
 
-  const statusMap = {
-    processing: { label: "Processing", className: "bg-blue-100 text-blue-800 border-blue-200" },
-    active: { label: "Active", className: "bg-green-100 text-green-800 border-green-200" },
-    paused: { label: "Paused", className: "bg-amber-100 text-amber-800 border-amber-200" },
-    completed: { label: "Completed", className: "bg-blue-100 text-blue-800 border-blue-200" },
-    stopped: { label: "Stopped", className: "bg-gray-100 text-gray-800 border-gray-200" },
-    draft: { label: "Draft", className: "bg-purple-100 text-purple-800 border-purple-200" },
-    failed: { label: "Failed", className: "bg-red-100 text-red-800 border-red-200" },
-    running: { label: "Running", className: "bg-green-100 text-green-800 border-green-200" }
+    // Handle either string or enum type safely
+    if (typeof state === 'string') {
+      status = state.toLowerCase();
+    } else if (state !== undefined) {
+      // If it's an enum, convert to string
+      status = String(state).toLowerCase();
+    }
+
+    const statusMap = {
+      processing: { label: "Processing", className: "bg-blue-100 text-blue-800 border-blue-200" },
+      active: { label: "Active", className: "bg-green-100 text-green-800 border-green-200" },
+      paused: { label: "Paused", className: "bg-amber-100 text-amber-800 border-amber-200" },
+      completed: { label: "Completed", className: "bg-blue-100 text-blue-800 border-blue-200" },
+      stopped: { label: "Stopped", className: "bg-gray-100 text-gray-800 border-gray-200" },
+      draft: { label: "Draft", className: "bg-purple-100 text-purple-800 border-purple-200" },
+      failed: { label: "Failed", className: "bg-red-100 text-red-800 border-red-200" },
+      running: { label: "Running", className: "bg-green-100 text-green-800 border-green-200" }
+    };
+
+    const statusInfo = statusMap[status as keyof typeof statusMap] || statusMap.draft;
+
+    return (
+      <Badge className={`${statusInfo.className} ml-2`}>
+        {statusInfo.label}
+      </Badge>
+    );
   };
-  
-  const statusInfo = statusMap[status as keyof typeof statusMap] || statusMap.draft;
-  
-  return (
-    <Badge className={`${statusInfo.className} ml-2`}>
-      {statusInfo.label}
-    </Badge>
-  );
-};
 
   // Add function to safely handle different date formats
   const formatDate = (timestamp?: number | string) => {
     if (!timestamp) return 'N/A';
-    
+
     try {
       const numericTimestamp = typeof timestamp === 'string' ? parseInt(timestamp) : timestamp;
       // Handle both Unix timestamps (seconds) and JavaScript timestamps (milliseconds)
@@ -430,7 +553,7 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
   const getCampaignMetrics = () => {
     // From campaign stats if available
     const stats = campaignData?.stats || {};
-    
+
     return [
       {
         title: "Connection Requests",
@@ -500,8 +623,8 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
       )}
 
       {/* Lead List Summary */}
-      <Collapsible 
-        open={isLeadListOpen} 
+      <Collapsible
+        open={isLeadListOpen}
         onOpenChange={(isOpen) => !viewMode && setIsLeadListOpen(isOpen)}
         disabled={viewMode}
       >
@@ -554,13 +677,13 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
                   <div>
                     <h3 className="font-medium text-gray-900">{leadListName}</h3>
                     <p className="text-sm text-gray-500 mt-1">
-                      {viewMode 
-                        ? "Lead list used in this campaign" 
+                      {viewMode
+                        ? "Lead list used in this campaign"
                         : "Selected lead list for this campaign"}
                     </p>
                   </div>
-                  <Badge variant={viewMode ? "outline" : "secondary"} className={viewMode 
-                    ? "bg-blue-50 text-blue-700 border-blue-200" 
+                  <Badge variant={viewMode ? "outline" : "secondary"} className={viewMode
+                    ? "bg-blue-50 text-blue-700 border-blue-200"
                     : "bg-primary/10 text-primary border-primary/20"}>
                     {leadCount} Leads
                   </Badge>
@@ -576,8 +699,8 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
       </Collapsible>
 
       {/* Sender Accounts Summary - Enhanced styling in view mode */}
-      <Collapsible 
-        open={isSendersOpen} 
+      <Collapsible
+        open={isSendersOpen}
         onOpenChange={(isOpen) => !viewMode && setIsSendersOpen(isOpen)}
         disabled={viewMode}
       >
@@ -618,13 +741,12 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
                   {senderAccounts.map((account: any, index: number) => {
                     // Get account status if available
                     const accountStatus = campaignData?.accountStatuses?.[account.id];
-                    
+
                     return (
-                      <div 
-                        key={account.id || `account-${index}`} 
-                        className={`flex items-center space-x-3 rounded-lg p-3 ${
-                          viewMode ? 'bg-blue-50/30 border border-blue-100' : 'bg-gray-50'
-                        }`}
+                      <div
+                        key={account.id || `account-${index}`}
+                        className={`flex items-center space-x-3 rounded-lg p-3 ${viewMode ? 'bg-blue-50/30 border border-blue-100' : 'bg-gray-50'
+                          }`}
                       >
                         <Avatar className="w-8 h-8">
                           <AvatarImage src={account.profilePicture || "/placeholder.svg"} />
@@ -646,9 +768,9 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
                           <p className="text-xs text-gray-500">{account.email || account.id?.substring(0, 10)}</p>
                         </div>
                         {!viewMode && (
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             className="p-1 h-auto"
                             onClick={() => {
                               const updatedAccounts = senderAccounts.filter(a => a.id !== account.id);
@@ -673,8 +795,8 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
       </Collapsible>
 
       {/* Sequence Overview - Enhanced message display in view mode */}
-      <Collapsible 
-        open={isSequenceOpen} 
+      <Collapsible
+        open={isSequenceOpen}
         onOpenChange={(isOpen) => !viewMode && setIsSequenceOpen(isOpen)}
         disabled={viewMode}
       >
@@ -718,42 +840,39 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
               {workflowSteps && workflowSteps.length > 0 ? (
                 <div className="space-y-4">
                   {workflowSteps.map((step, index) => (
-                    <div key={index} className={`flex flex-col p-4 rounded-lg ${
-                      viewMode
-                        ? step.type === 'connection' 
-                          ? 'bg-indigo-50/40 border border-indigo-100'
-                          : 'bg-blue-50/40 border border-blue-100' 
-                        : 'bg-gray-50'
-                    }`}>
+                    <div key={index} className={`flex flex-col p-4 rounded-lg ${viewMode
+                      ? step.type === 'connection'
+                        ? 'bg-indigo-50/40 border border-indigo-100'
+                        : 'bg-blue-50/40 border border-blue-100'
+                      : 'bg-gray-50'
+                      }`}>
                       <div className="flex items-center space-x-4 mb-2">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                          viewMode 
-                            ? step.type === 'connection'
-                              ? 'bg-indigo-100 text-indigo-700'
-                              : 'bg-blue-100 text-blue-700'
-                            : 'bg-primary text-white'
-                        }`}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${viewMode
+                          ? step.type === 'connection'
+                            ? 'bg-indigo-100 text-indigo-700'
+                            : 'bg-blue-100 text-blue-700'
+                          : 'bg-primary text-white'
+                          }`}>
                           {index + 1}
                         </div>
                         <div className="flex-1">
                           <h4 className="font-medium text-gray-900">{step.title}</h4>
                           <p className="text-sm text-gray-500">{step.subtitle}</p>
                         </div>
-                        {step.type === 'connection' ? 
-                          <Mail className={`w-4 h-4 ${viewMode ? 'text-indigo-500' : 'text-gray-400'}`} /> : 
+                        {step.type === 'connection' ?
+                          <Mail className={`w-4 h-4 ${viewMode ? 'text-indigo-500' : 'text-gray-400'}`} /> :
                           <Clock className={`w-4 h-4 ${viewMode ? 'text-blue-500' : 'text-gray-400'}`} />
                         }
                       </div>
-                      
+
                       {/* Always show message content, but with different styling based on mode */}
                       {step.content && (
-                        <div className={`mt-2 p-3 rounded text-sm whitespace-pre-wrap ${
-                          viewMode
-                            ? step.type === 'connection'
-                              ? 'bg-white border border-indigo-100 text-gray-700'
-                              : 'bg-white border border-blue-100 text-gray-700'
-                            : 'bg-white/80 border border-gray-200 text-gray-700'
-                        }`}>
+                        <div className={`mt-2 p-3 rounded text-sm whitespace-pre-wrap ${viewMode
+                          ? step.type === 'connection'
+                            ? 'bg-white border border-indigo-100 text-gray-700'
+                            : 'bg-white border border-blue-100 text-gray-700'
+                          : 'bg-white/80 border border-gray-200 text-gray-700'
+                          }`}>
                           {step.content}
                         </div>
                       )}
@@ -771,8 +890,8 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
       </Collapsible>
 
       {/* Schedule Campaign - Enhanced readability in view mode */}
-      <Collapsible 
-        open={isScheduleOpen} 
+      <Collapsible
+        open={isScheduleOpen}
         onOpenChange={(isOpen) => !viewMode && setIsScheduleOpen(isOpen)}
         disabled={viewMode}
       >
@@ -787,8 +906,8 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
                   <div>
                     <CardTitle className="text-lg font-semibold">Campaign Schedule</CardTitle>
                     <p className="text-sm text-gray-500 mt-1">
-                      {viewMode 
-                        ? "Times when audience receives deliveries from this campaign" 
+                      {viewMode
+                        ? "Times when audience receives deliveries from this campaign"
                         : "Set the times your audience should receive deliveries from this campaign"}
                     </p>
                   </div>
@@ -819,16 +938,56 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
                     </div>
                   ) : (
                     <>
-                      <select 
+                      <select
                         value={timezone}
                         onChange={handleTimezoneChange}
                         className="w-full p-3 border border-gray-300 rounded-lg bg-white appearance-none pr-10"
                         disabled={viewMode}
                       >
-                        <option>Target's Timezone (Recommended)</option>
-                        <option>UTC</option>
-                        <option>EST</option>
-                        <option>PST</option>
+                        <option value="Target's Timezone (Recommended)">Target's Timezone (Recommended)</option>
+
+                        <optgroup label="UTC/GMT">
+                          <option value="GMT">GMT - Greenwich Mean Time</option>
+                          <option value="UTC">UTC - Coordinated Universal Time</option>
+                        </optgroup>
+
+                        <optgroup label="Americas">
+                          <option value="EST">EST - Eastern Standard Time</option>
+                          <option value="EDT">EDT - Eastern Daylight Time</option>
+                          <option value="CST">CST - Central Standard Time</option>
+                          <option value="CDT">CDT - Central Daylight Time</option>
+                          <option value="MST">MST - Mountain Standard Time</option>
+                          <option value="MDT">MDT - Mountain Daylight Time</option>
+                          <option value="PST">PST - Pacific Standard Time</option>
+                          <option value="PDT">PDT - Pacific Daylight Time</option>
+                        </optgroup>
+
+                        <optgroup label="Europe">
+                          <option value="BST">BST - British Summer Time</option>
+                          <option value="CET">CET - Central European Time</option>
+                          <option value="CEST">CEST - Central European Summer Time</option>
+                          <option value="EET">EET - Eastern European Time</option>
+                          <option value="EEST">EEST - Eastern European Summer Time</option>
+                          <option value="MSK">MSK - Moscow Standard Time</option>
+                        </optgroup>
+
+                        <optgroup label="Asia">
+                          <option value="IST">IST - Indian Standard Time</option>
+                          <option value="CST_CHINA">CST - China Standard Time</option>
+                          <option value="JST">JST - Japan Standard Time</option>
+                          <option value="AST">AST - Arabian Standard Time</option>
+                        </optgroup>
+
+                        <optgroup label="Australia/Pacific">
+                          <option value="AWST">AWST - Australian Western Standard Time</option>
+                          <option value="ACST">ACST - Australian Central Standard Time</option>
+                          <option value="AEST">AEST - Australian Eastern Standard Time</option>
+                          <option value="AEDT">AEDT - Australian Eastern Daylight Time</option>
+                        </optgroup>
+
+                        <optgroup label="Africa">
+                          <option value="SAST">SAST - South Africa Standard Time</option>
+                        </optgroup>
                       </select>
                       <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none" />
                     </>
@@ -844,14 +1003,14 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
                     <Badge className="bg-blue-50 text-blue-700 border-blue-200">Read Only</Badge>
                   )}
                 </div>
-                
+
                 <div className={`space-y-3 ${viewMode ? 'border border-blue-100 rounded-lg p-3 bg-blue-50/20' : ''}`}>
                   {Object.entries(workingHours).map(([day, config]) => (
                     <div key={day} className={`flex items-center space-x-4 p-3 border ${viewMode ? 'border-blue-100 bg-white' : 'border-gray-200'} rounded-lg`}>
                       <div className="flex items-center space-x-3 w-24">
                         {viewMode ? (
-                          <div className={`w-5 h-5 rounded border flex items-center justify-center ${config.enabled 
-                            ? 'bg-blue-500 border-blue-500 text-white' 
+                          <div className={`w-5 h-5 rounded border flex items-center justify-center ${config.enabled
+                            ? 'bg-blue-500 border-blue-500 text-white'
                             : 'bg-gray-200 border-gray-300'}`}>
                             {config.enabled && <Check className="w-3 h-3" />}
                           </div>
@@ -868,13 +1027,13 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
                         )}
                         <span className={`text-sm font-medium ${config.enabled ? 'text-gray-700' : 'text-gray-500'}`}>{day}</span>
                       </div>
-                      
+
                       <div className="flex-1 flex items-center space-x-2">
                         {config.slots.map((slot, index) => (
                           <div key={index} className="flex items-center space-x-2">
                             {viewMode ? (
-                              <span className={`px-2 py-1 border ${config.enabled 
-                                ? 'border-blue-200 bg-blue-50/50 text-blue-700' 
+                              <span className={`px-2 py-1 border ${config.enabled
+                                ? 'border-blue-200 bg-blue-50/50 text-blue-700'
                                 : 'border-gray-200 bg-gray-50 text-gray-400'} rounded text-sm`}>
                                 {slot.from}
                               </span>
@@ -889,8 +1048,8 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
                             )}
                             <span className="text-gray-500">to</span>
                             {viewMode ? (
-                              <span className={`px-2 py-1 border ${config.enabled 
-                                ? 'border-blue-200 bg-blue-50/50 text-blue-700' 
+                              <span className={`px-2 py-1 border ${config.enabled
+                                ? 'border-blue-200 bg-blue-50/50 text-blue-700'
                                 : 'border-gray-200 bg-gray-50 text-gray-400'} rounded text-sm`}>
                                 {slot.to}
                               </span>
@@ -905,7 +1064,7 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
                             )}
                           </div>
                         ))}
-                        
+
                         {!viewMode && (
                           <Button
                             variant="ghost"
@@ -956,8 +1115,8 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
                 I confirm all details are correct and ready to launch
               </label>
             </div>
-            
-            <Button 
+
+            <Button
               className="w-full bg-primary hover:bg-primary/90 text-white py-3 text-lg font-semibold relative"
               disabled={!confirmDetails || isSubmitting}
               onClick={handleLaunch}
@@ -1019,7 +1178,7 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
                       {campaignData?.stats?.connectionsAccepted || 0}
                     </p>
                     <p className="text-xs text-green-500 mt-1">
-                      {campaignData?.stats?.connectionsSent 
+                      {campaignData?.stats?.connectionsSent
                         ? Math.round((campaignData?.stats?.connectionsAccepted / campaignData?.stats?.connectionsSent) * 100) + '%'
                         : '0%'} acceptance rate
                     </p>
@@ -1043,7 +1202,7 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
                       {campaignData?.stats?.messagesReceived || 0}
                     </p>
                     <p className="text-xs text-indigo-500 mt-1">
-                      {campaignData?.stats?.messagesSent 
+                      {campaignData?.stats?.messagesSent
                         ? Math.round((campaignData?.stats?.messagesReceived / campaignData?.stats?.messagesSent) * 100) + '%'
                         : '0%'} response rate
                     </p>

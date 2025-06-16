@@ -19,6 +19,7 @@ export type Account = {
     sendMessage?: number;
     sentInvitations?: number;
     campaignFailures?: number;
+    sendConnectionReq?: number;
   };
   campaignFailures?: number;
   profileImageUrl?: string;

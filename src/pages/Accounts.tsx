@@ -213,14 +213,6 @@ const AccountsContent = () => {
           </div>
           <div className="flex items-center space-x-2">
             <Button
-              variant="outline"
-              size="sm"
-              className="h-8 text-xs border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-[#5a41cd]"
-            >
-              <Settings size={12} className="mr-1" />
-              Purchase seats
-            </Button>
-            <Button
               className="bg-[#5a41cd] hover:bg-[#5a41cd]/90 text-white h-8 text-xs"
               onClick={() => setShowLinkedInModal(true)}
             >
@@ -287,7 +279,7 @@ const AccountsContent = () => {
                     </div>
                     <div className="flex items-center space-x-1">
                       <span className="text-gray-500">📅</span>
-                      <span>{account.accountActions?.sentInvitations || 0} invitations sent</span>
+                      <span>{account.accountActions?.sendConnectionReq || 0} invitations sent</span>
                     </div>
                     <div className="flex items-center space-x-1">
                       <span className="text-gray-500">👥</span>

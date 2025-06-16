@@ -18,6 +18,8 @@ import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { DateTime } from 'luxon';
+import { zoneMap } from '../components/Campaign/ReviewLaunch'; // Import the timezone mapping
 
 // Add to ViewCampaignPage.tsx
 import { CampaignStepType } from '@/types/campaigns';
@@ -67,6 +69,25 @@ const secondsToTimeFormat = (seconds: number): string => {
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 };
 
+// Modify the secondsToTimeFormat function to handle timezone conversion
+const secondsToTimeFormatInTimezone = (seconds: number, userTimezone: string): string => {
+    // Create a DateTime object in UTC with the seconds since midnight
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    
+    // Create a DateTime object in UTC representing today at the specified time
+    const utcTime = DateTime.utc().startOf('day').plus({ hours, minutes });
+    
+    // Get the IANA timezone identifier from the mapping or default to UTC
+    const ianaTimezone = zoneMap[userTimezone] || 'Etc/UTC';
+    
+    // Convert from UTC to the user's timezone
+    const localTime = utcTime.setZone(ianaTimezone);
+    
+    // Format as HH:MM
+    return localTime.toFormat('HH:mm');
+};
+
 // Transform campaign data for ReviewLaunch component
 const transformCampaignForReview = (campaign: any, insights: any) => {
     //console.log("Transforming workflow data for reviewLaunch component", campaign);
@@ -84,7 +105,10 @@ const transformCampaignForReview = (campaign: any, insights: any) => {
         Saturday: { enabled: false, slots: [{ from: '09:00', to: '17:00' }] },
     };
 
-    // Convert operational times to working hours format
+    // Get the user's timezone
+    const userTimezone = campaign.localOperationalTimes?.timezone || "Target's Timezone (Recommended)";
+    
+    // Convert operational times to working hours format with timezone conversion
     let workingHours = defaultWorkingHours;
 
     if (campaign.operationalTimes) {
@@ -92,50 +116,50 @@ const transformCampaignForReview = (campaign: any, insights: any) => {
             Sunday: {
                 enabled: campaign.operationalTimes.sunday?.enabled || false,
                 slots: [{
-                    from: secondsToTimeFormat(campaign.operationalTimes.sunday?.startTime || 32400),
-                    to: secondsToTimeFormat(campaign.operationalTimes.sunday?.endTime || 61200)
+                    from: secondsToTimeFormatInTimezone(campaign.operationalTimes.sunday?.startTime || 32400, userTimezone),
+                    to: secondsToTimeFormatInTimezone(campaign.operationalTimes.sunday?.endTime || 61200, userTimezone)
                 }]
             },
             Monday: {
                 enabled: campaign.operationalTimes.monday?.enabled || false,
                 slots: [{
-                    from: secondsToTimeFormat(campaign.operationalTimes.monday?.startTime || 32400),
-                    to: secondsToTimeFormat(campaign.operationalTimes.monday?.endTime || 61200)
+                    from: secondsToTimeFormatInTimezone(campaign.operationalTimes.monday?.startTime || 32400, userTimezone),
+                    to: secondsToTimeFormatInTimezone(campaign.operationalTimes.monday?.endTime || 61200, userTimezone)
                 }]
             },
             Tuesday: {
                 enabled: campaign.operationalTimes.tuesday?.enabled || false,
                 slots: [{
-                    from: secondsToTimeFormat(campaign.operationalTimes.tuesday?.startTime || 32400),
-                    to: secondsToTimeFormat(campaign.operationalTimes.tuesday?.endTime || 61200)
+                    from: secondsToTimeFormatInTimezone(campaign.operationalTimes.tuesday?.startTime || 32400, userTimezone),
+                    to: secondsToTimeFormatInTimezone(campaign.operationalTimes.tuesday?.endTime || 61200, userTimezone)
                 }]
             },
             Wednesday: {
                 enabled: campaign.operationalTimes.wednesday?.enabled || false,
                 slots: [{
-                    from: secondsToTimeFormat(campaign.operationalTimes.wednesday?.startTime || 32400),
-                    to: secondsToTimeFormat(campaign.operationalTimes.wednesday?.endTime || 61200)
+                    from: secondsToTimeFormatInTimezone(campaign.operationalTimes.wednesday?.startTime || 32400, userTimezone),
+                    to: secondsToTimeFormatInTimezone(campaign.operationalTimes.wednesday?.endTime || 61200, userTimezone)
                 }]
             },
             Thursday: {
                 enabled: campaign.operationalTimes.thursday?.enabled || false,
                 slots: [{
-                    from: secondsToTimeFormat(campaign.operationalTimes.thursday?.startTime || 32400),
-                    to: secondsToTimeFormat(campaign.operationalTimes.thursday?.endTime || 61200)
+                    from: secondsToTimeFormatInTimezone(campaign.operationalTimes.thursday?.startTime || 32400, userTimezone),
+                    to: secondsToTimeFormatInTimezone(campaign.operationalTimes.thursday?.endTime || 61200, userTimezone)
                 }]
             },
             Friday: {
                 enabled: campaign.operationalTimes.friday?.enabled || false,
                 slots: [{
-                    from: secondsToTimeFormat(campaign.operationalTimes.friday?.startTime || 32400),
-                    to: secondsToTimeFormat(campaign.operationalTimes.friday?.endTime || 61200)
+                    from: secondsToTimeFormatInTimezone(campaign.operationalTimes.friday?.startTime || 32400, userTimezone),
+                    to: secondsToTimeFormatInTimezone(campaign.operationalTimes.friday?.endTime || 61200, userTimezone)
                 }]
             },
             Saturday: {
                 enabled: campaign.operationalTimes.saturday?.enabled || false,
                 slots: [{
-                    from: secondsToTimeFormat(campaign.operationalTimes.saturday?.startTime || 32400),
-                    to: secondsToTimeFormat(campaign.operationalTimes.saturday?.endTime || 61200)
+                    from: secondsToTimeFormatInTimezone(campaign.operationalTimes.saturday?.startTime || 32400, userTimezone),
+                    to: secondsToTimeFormatInTimezone(campaign.operationalTimes.saturday?.endTime || 61200, userTimezone)
                 }]
             }
         };
@@ -183,18 +207,14 @@ const transformCampaignForReview = (campaign: any, insights: any) => {
     // Build the final campaign data object
     return {
         ...campaign,
-
         // Ensure workflow is in the expected format
         workflow: { configs: workflowConfigs },
-
         // Ensure accounts are available under both properties
         senderAccounts: campaign.senderAccounts || campaign.accounts || [],
         accounts: campaign.accounts || campaign.senderAccounts || [],
-
         // Use the converted working hours
         workingHours: workingHours,
-        timezone: campaign.localOperationalTimes.timezone || "Target's Timezone (Recommended)",
-
+        timezone: userTimezone,
     };
 };
 

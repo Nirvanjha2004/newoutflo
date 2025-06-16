@@ -8,7 +8,7 @@ import { Conversation, Message } from "@/types/inbox";
 import { useMessagesQuery } from "@/hooks/useInboxQueries";
 import { usePostMessage } from "@/hooks/useInboxMutations";
 import { useToast } from "@/hooks/use-toast";
-
+import { useAccountsQuery } from "@/hooks/useAccountQueries";
 interface ConversationViewProps {
   conversation: Conversation | null;
   onClose: () => void;
@@ -19,7 +19,7 @@ export const ConversationView = ({ conversation, onClose, onProfilePreview }: Co
   const [message, setMessage] = useState("");
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
+  const { data: appUserAccountsData = [] } = useAccountsQuery();
   const { data: conversationDetail, isLoading: loading, error } = useMessagesQuery(conversation?.id);
   const postMessageMutation = usePostMessage();
 
@@ -148,9 +148,15 @@ export const ConversationView = ({ conversation, onClose, onProfilePreview }: Co
   }
 
   // Get contact information from the conversation
-  const primaryAccount = conversation.accounts.find(acc => acc.firstName || acc.lastName) || conversation.accounts[0];
-  const fullName = `${primaryAccount.firstName || ''} ${primaryAccount.lastName || ''}`.trim();
-  const initials = `${(primaryAccount.firstName || ' ')[0] || ''}${(primaryAccount.lastName || ' ')[0] || ''}`.toUpperCase();
+  // const { data: appUserAccountsData = [] } = useAccountsQuery(); // Add this import and hook at the top
+
+  // Find the contact account (the one that's NOT your own account)
+  const contactAccount = conversation.accounts.find(acc => 
+    !appUserAccountsData.some(userAcc => userAcc.urn === acc.urn)
+  ) || conversation.accounts[0];
+  
+  const fullName = `${contactAccount.firstName || ''} ${contactAccount.lastName || ''}`.trim();
+  const initials = `${(contactAccount.firstName || ' ')[0] || ''}${(contactAccount.lastName || ' ')[0] || ''}`.toUpperCase();
 
   return (
     <div className="flex-1 flex flex-col h-full">
@@ -159,9 +165,9 @@ export const ConversationView = ({ conversation, onClose, onProfilePreview }: Co
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-5">
             <Avatar className="w-14 h-14 ring-4 ring-indigo-50 border border-gray-200">
-              {primaryAccount.profileImageUrl ? (
+              {contactAccount.profileImageUrl ? (
                 <AvatarImage
-                  src={primaryAccount.profileImageUrl}
+                  src={contactAccount.profileImageUrl}
                   alt={fullName}
                   referrerPolicy="no-referrer"
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
@@ -178,7 +184,7 @@ export const ConversationView = ({ conversation, onClose, onProfilePreview }: Co
                 <Star size={16} className="text-gray-300 hover:text-yellow-400 cursor-pointer transition-colors ml-2" />
               </div>
               <p className="text-sm text-gray-600">
-                {primaryAccount.location || 'Location'} | {primaryAccount.title || 'Title'}
+                {contactAccount.location || 'Location'} | {contactAccount.title || 'Title'}
               </p>
               <div className="flex items-center mt-1">
                 <span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full border border-purple-200">
