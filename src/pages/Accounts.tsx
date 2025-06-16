@@ -289,9 +289,7 @@ const AccountsContent = () => {
 
                   <div className="flex items-center justify-end space-x-2">
                     {account.status === SyncState.INACTIVE ? (
-                      <Button variant="outline" size="sm" className="text-blue-600 border-blue-200 hover:bg-blue-50 h-7 text-xs">
-                        Re-connect
-                      </Button>
+                      null
                     ) : (
                       <Button
                         variant="outline"
