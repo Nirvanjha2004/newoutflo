@@ -91,6 +91,8 @@ const ListOfLeads = ({ leadData, updateLeads }: ListOfLeadsProps) => {
         },
         verifyLeads: false
     });
+    // Add this state variable near your other state declarations
+    const [uploadInitiated, setUploadInitiated] = useState(false);
 
 
     // Add this function after handleClientSideMapping
@@ -681,6 +683,9 @@ const ListOfLeads = ({ leadData, updateLeads }: ListOfLeadsProps) => {
             return;
         }
 
+        // Set the upload flag when upload starts
+        setUploadInitiated(true);
+
         // IMPORTANT: Add this check to prevent infinite loop
         // If verification results exist, we shouldn't verify again
         const shouldVerify = verifySettings.verifyLeads && !verificationResults;
@@ -1175,6 +1180,7 @@ const ListOfLeads = ({ leadData, updateLeads }: ListOfLeadsProps) => {
                             onContinue={continueAfterVerification}
                             results={verificationResults}
                             totalRows={parsedCsvData.length}
+                            continueEnabled={uploadInitiated} // Pass the state here
                         />
                     )}
 

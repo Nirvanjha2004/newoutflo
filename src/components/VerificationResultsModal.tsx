@@ -25,6 +25,7 @@ interface VerificationResultsModalProps {
     completed: boolean;
   };
   totalRows: number;
+  continueEnabled?: boolean; // Add this new prop
 }
 
 export function VerificationResultsModal({
@@ -32,7 +33,8 @@ export function VerificationResultsModal({
   onClose,
   onContinue,
   results,
-  totalRows
+  totalRows,
+  continueEnabled = false // Default to disabled 
 }: VerificationResultsModalProps) {
   // Calculate percentages for visual indicators
   const validUrlsPercentage = totalRows > 0 ? 
@@ -196,9 +198,10 @@ export function VerificationResultsModal({
           </div>
           <Button
             onClick={onContinue}
-            className="bg-green-600 hover:bg-green-700 text-white"
+            disabled={!continueEnabled} // Use the prop here
+            className={!continueEnabled ? "opacity-50 cursor-not-allowed" : ""}
           >
-            Continue with Upload
+            Continue with Valid Leads
           </Button>
         </DialogFooter>
       </DialogContent>

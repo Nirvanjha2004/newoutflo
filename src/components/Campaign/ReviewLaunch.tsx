@@ -1127,7 +1127,7 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
                   Launching Campaign...
                 </>
               ) : (
-                <>🚀 Save Time</>
+                <>🚀 Save Time and Launch</>
               )}
             </Button>
           </div>
