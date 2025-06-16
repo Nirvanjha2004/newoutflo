@@ -211,7 +211,7 @@ const LinkedInSenders: React.FC<LinkedInSendersProps> = ({ selectedAccounts, upd
                 <TableHead className="text-gray-700 font-medium">Name</TableHead>
                 <TableHead className="text-gray-700 font-medium">LinkedIn Subscription</TableHead>
                 <TableHead className="text-gray-700 font-medium">Activity</TableHead>
-                {!viewMode && <TableHead className="text-gray-700 font-medium text-center">Configure</TableHead>}
+                {/* {!viewMode && <TableHead className="text-gray-700 font-medium text-center">Configure</TableHead>} */}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -287,7 +287,7 @@ const LinkedInSenders: React.FC<LinkedInSendersProps> = ({ selectedAccounts, upd
                       )}
                     </span>
                   </TableCell>
-                  {!viewMode && (
+                  {/* {!viewMode && (
                     <TableCell>
                       <div className="flex items-center justify-center space-x-2">
                         <Button variant="ghost" size="sm" className="p-2">
@@ -298,7 +298,7 @@ const LinkedInSenders: React.FC<LinkedInSendersProps> = ({ selectedAccounts, upd
                         </Button>
                       </div>
                     </TableCell>
-                  )}
+                  )} */}
                 </TableRow>
               ))}
             </TableBody>

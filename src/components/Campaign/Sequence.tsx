@@ -565,8 +565,8 @@ const Sequence: React.FC<SequenceProps> = ({
                             <DropdownMenuItem onClick={() => handleAddMessage(step)}>
                                 Add message
                             </DropdownMenuItem>
-                            <DropdownMenuItem>Edit</DropdownMenuItem>
-                            <DropdownMenuItem>Duplicate</DropdownMenuItem>
+                            {/* <DropdownMenuItem>Edit</DropdownMenuItem>
+                            <DropdownMenuItem>Duplicate</DropdownMenuItem> */}
                         </DropdownMenuContent>
                     </DropdownMenu>
                 )}

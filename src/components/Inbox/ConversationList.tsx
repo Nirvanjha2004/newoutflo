@@ -94,7 +94,7 @@ export const ConversationList = ({
 
   const { data: conversationsData = [], isLoading: loading, error } = useConversationsQuery(
     isPendingFilter,
-    searchTerm
+    searchTerm  // Make sure your query is using the searchTerm parameter
   );
 
   const { data: appUserAccountsData = [] } = useAccountsQuery();
@@ -208,12 +208,20 @@ export const ConversationList = ({
   const finalFilteredConversations = useMemo(() => {
     let result = filteredConversationsBySender;
     
-    // Apply existing filters (search term, active filter, etc.)
-    if (searchTerm) {
-      const lowerCaseSearch = searchTerm.toLowerCase();
+    // Apply search term filter
+    if (searchTerm && searchTerm.trim() !== "") {
+      const lowerCaseSearch = searchTerm.toLowerCase().trim();
       result = result.filter(conversation => {
-        // Existing search logic
-        // ...
+        // Search in participant names
+        const participantNameMatch = conversation.accounts?.some(account => 
+          `${account.firstName || ""} ${account.lastName || ""}`.toLowerCase().includes(lowerCaseSearch)
+        );
+        
+        // Search in last message content
+        const lastMessageMatch = conversation.lastMessage?.text?.toLowerCase().includes(lowerCaseSearch);
+        
+        // Return true if any of the above conditions match
+        return participantNameMatch || lastMessageMatch;
       });
     }
     

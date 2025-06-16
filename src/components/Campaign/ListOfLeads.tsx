@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Upload, Download, Search, Filter, MoreHorizontal, CheckCircle, X, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -1059,6 +1059,27 @@ const ListOfLeads = ({ leadData, updateLeads }: ListOfLeadsProps) => {
         }
     }, [storeLeads]);
 
+    // Filter leads based on search query
+    const filteredLeads = useMemo(() => {
+      if (!searchQuery.trim()) {
+        return leads;
+      }
+      
+      const query = searchQuery.toLowerCase().trim();
+      
+      return leads.filter(lead => {
+        return (
+          (lead.firstName?.toLowerCase().includes(query)) ||
+          (lead.lastName?.toLowerCase().includes(query)) ||
+          (lead.jobTitle?.toLowerCase().includes(query)) ||
+          (lead.company?.toLowerCase().includes(query)) ||
+          (lead.location?.toLowerCase().includes(query)) ||
+          (lead.email?.toLowerCase().includes(query)) ||
+          (lead.headline?.toLowerCase().includes(query))
+        );
+      });
+    }, [leads, searchQuery]);
+
     // Column mapping view
     if (showColumnMapping && uploadedFile) {
         return <div className="space-y-6">
@@ -1253,7 +1274,7 @@ const ListOfLeads = ({ leadData, updateLeads }: ListOfLeadsProps) => {
                             <Input placeholder="Search leads..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10" />
                         </div>
 
-                        <Select>
+                        {/* <Select>
                             <SelectTrigger className="w-32">
                                 <Filter className="w-4 h-4 mr-2" />
                                 <SelectValue placeholder="Role" />
@@ -1284,8 +1305,8 @@ const ListOfLeads = ({ leadData, updateLeads }: ListOfLeadsProps) => {
                                 <SelectItem value="hot">Hot</SelectItem>
                                 <SelectItem value="warm">Warm</SelectItem>
                                 <SelectItem value="cold">Cold</SelectItem>
-                            </SelectContent>
-                        </Select>
+                            </SelectContent> */}
+                        {/* </Select> */}
                     </div>
                 </div>
 
@@ -1296,12 +1317,12 @@ const ListOfLeads = ({ leadData, updateLeads }: ListOfLeadsProps) => {
                             <span className="text-sm text-gray-600">Select All</span>
                         </div>
 
-                        {selectedCount > 0 && <div className="flex items-center space-x-2">
+                        {/* {selectedCount > 0 && <div className="flex items-center space-x-2">
                             <Button variant="outline" size="sm">Remove Selected</Button>
                             <Button variant="outline" size="sm">Edit Tags</Button>
                             <Button variant="outline" size="sm">Export</Button>
                             <Button variant="outline" size="sm">Reassign to Sequence</Button>
-                        </div>}
+                        </div>} */}
                     </div>
                 </div>
             </div>
@@ -1309,7 +1330,7 @@ const ListOfLeads = ({ leadData, updateLeads }: ListOfLeadsProps) => {
             {/* Leads Grid */}
             <div className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {leads.map(lead =>
+                    {filteredLeads.map(lead =>
                         <div key={lead.id} className={`border rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer ${lead.selected ? 'border-primary bg-blue-50' : 'border-gray-200'}`}>
                             <div className="flex items-start space-x-3">
                                 <Checkbox className='mt-4' checked={lead.selected} onCheckedChange={checked => handleLeadSelect(lead.id, checked as boolean)} />
@@ -1335,7 +1356,7 @@ const ListOfLeads = ({ leadData, updateLeads }: ListOfLeadsProps) => {
                                     </div>
                                 </div>
                                 <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
+                                    {/* <DropdownMenuTrigger asChild>
                                         <Button variant="ghost" size="sm" className="p-1">
                                             <MoreHorizontal className="w-4 h-4" />
                                         </Button>
@@ -1344,12 +1365,18 @@ const ListOfLeads = ({ leadData, updateLeads }: ListOfLeadsProps) => {
                                         <DropdownMenuItem>View Profile</DropdownMenuItem>
                                         <DropdownMenuItem>Edit Lead</DropdownMenuItem>
                                         <DropdownMenuItem>Remove</DropdownMenuItem>
-                                    </DropdownMenuContent>
+                                    </DropdownMenuContent> */}
                                 </DropdownMenu>
                             </div>
                         </div>
                     )}
                 </div>
+                
+                {filteredLeads.length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                        <p>No leads match your search criteria</p>
+                    </div>
+                )}
             </div>
 
             {/* Progress Bar */}
@@ -1357,7 +1384,9 @@ const ListOfLeads = ({ leadData, updateLeads }: ListOfLeadsProps) => {
                 <div className="bg-gray-50 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-medium text-gray-700">Targets</span>
-                        <span className="text-sm text-gray-600">{totalCount} / 250</span>
+                        <span className="text-sm text-gray-600">
+                            {searchQuery.trim() ? `${filteredLeads.length} / ${totalCount}` : `${totalCount} / 250`}
+                        </span>
                     </div>
                     <Progress value={totalCount / 250 * 100} className="h-2" />
                     <p className="text-xs text-gray-500 mt-1">100%</p>
