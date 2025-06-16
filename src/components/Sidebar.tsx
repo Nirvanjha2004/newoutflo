@@ -34,7 +34,7 @@ interface SidebarProps {
 export const Sidebar = ({ isExpanded, onToggle, activePage = 'campaigns' }: SidebarProps) => {
   const sidebarItems = [
     // { icon: LayoutDashboard, path: "/", name: "Dashboard", id: "dashboard" },
-    { icon: MessageSquare, path: "/inbox", name: "Inbox", id: "inbox" },
+    { icon: MessageSquare, path: "/inbox", name: "Unibox", id: "inbox" },
     { icon: Users, path: "/accounts", name: "Accounts", id: "accounts" },
     { icon: ListPlus, path: "/allcampaigns", name: "Campaigns", id: "campaigns" },
     // { icon: Calendar, path: "/calendar", name: "Calendar", id: "calendar" },
