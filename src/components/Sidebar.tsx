@@ -99,11 +99,11 @@ export const Sidebar = ({ isExpanded, onToggle, activePage = 'campaigns' }: Side
         <div className={`flex items-center ${isExpanded ? 'space-x-3' : ''}`}>
           <img
             src="/image.png"
-            alt="Outflo"
+            alt="OutFlo"
             className="w-8 h-8 rounded-full object-cover"
           />
           {isExpanded && (
-            <div className="text-white font-bold text-xl">Outflo</div>
+            <div className="text-white font-bold text-xl">OutFlo</div>
           )}
         </div>
 
