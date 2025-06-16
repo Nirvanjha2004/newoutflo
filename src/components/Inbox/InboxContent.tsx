@@ -73,64 +73,12 @@ export const InboxContent = ({ selectedConversation, onSelectConversation, onPro
         <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-xl font-bold text-gray-900 mb-1">Inbox</h1>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <ConversationsFilter 
-                activeTab={activeFilter}
-                pending={isPendingFilter}
-                setPending={setIsPendingFilter}
-                myMessages={isMyMessagesFilter}
-                setMyMessages={setIsMyMessagesFilter}
-              />
+              <h3 className="text-xl font-bold text-gray-900 mb-1">The Centralised Inbox</h3>
             </div>
           </div>
 
-          {/* Enhanced Search */}
-          <div className="relative mb-3">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={14} />
-            <Input
-              placeholder="Search conversations, messages..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 pr-4 border-gray-300 focus:border-blue-500 focus:ring-blue-500 bg-white shadow-sm h-9 text-sm"
-            />
-          </div>
-
-          {/* Filter tags display section */}
-          <div className="mb-3 flex flex-wrap gap-2">
-            {/* Search Tag */}
-            {searchTerm && (
-              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-50 text-blue-700 border border-blue-200">
-                <Search size={10} className="mr-1" />
-                "{searchTerm}"
-                <button 
-                  onClick={() => setSearchTerm("")}
-                  className="ml-1 text-blue-400 hover:text-blue-600 transition-colors"
-                >
-                  ×
-                </button>
-              </span>
-            )}
-            
-            {/* Pending Filter Tag */}
-            {isPendingFilter && (
-              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-amber-50 text-amber-700 border border-amber-200">
-                <Bell size={10} className="mr-1" />
-                Awaiting Response
-                <button 
-                  onClick={() => setIsPendingFilter(false)}
-                  className="ml-1 text-amber-800 hover:text-amber-900"
-                >
-                  ×
-                </button>
-              </span>
-            )}
-          </div>
-
-          {/* Active Accounts Section with dropdown */}
-          <div>
+          {/* MOVED: Active Accounts Section - now positioned above search */}
+          <div className="mb-4">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xs font-medium text-gray-700">Active Accounts</h3>
               <div className="flex items-center space-x-1">
@@ -191,6 +139,59 @@ export const InboxContent = ({ selectedConversation, onSelectConversation, onPro
               </div>
             ) : (
               <div className="text-xs text-gray-500 py-1">No active accounts found</div>
+            )}
+          </div>
+
+          {/* Enhanced Search with Filter on the right */}
+          <div className="flex items-center space-x-2 mb-0">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={14} />
+              <Input
+                placeholder="Search conversations, messages..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 pr-4 border-gray-300 focus:border-blue-500 focus:ring-blue-500 bg-white shadow-sm h-9 text-sm w-full"
+              />
+            </div>
+            
+            {/* ConversationFilter moved to the right of search */}
+            <ConversationsFilter 
+              activeTab={activeFilter}
+              pending={isPendingFilter}
+              setPending={setIsPendingFilter}
+              myMessages={isMyMessagesFilter}
+              setMyMessages={setIsMyMessagesFilter}
+            />
+          </div>
+
+          {/* Filter tags display section */}
+          <div className="mb-3 flex flex-wrap gap-2">
+            {/* Search Tag */}
+            {searchTerm && (
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-50 text-blue-700 border border-blue-200">
+                <Search size={10} className="mr-1" />
+                "{searchTerm}"
+                <button 
+                  onClick={() => setSearchTerm("")}
+                  className="ml-1 text-blue-400 hover:text-blue-600 transition-colors"
+                >
+                  ×
+                </button>
+              </span>
+            )}
+            
+            {/* Pending Filter Tag */}
+            {isPendingFilter && (
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-amber-50 text-amber-700 border border-amber-200">
+                <Bell size={10} className="mr-1" />
+                Awaiting Response
+                <button 
+                  onClick={() => setIsPendingFilter(false)}
+                  className="ml-1 text-amber-800 hover:text-amber-900"
+                >
+                  ×
+                </button>
+              </span>
             )}
           </div>
         </div>

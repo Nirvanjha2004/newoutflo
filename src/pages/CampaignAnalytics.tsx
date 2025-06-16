@@ -14,6 +14,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AsyncButton } from "@/components/async-button";
 import { refreshCampaignLeads } from "@/api/campaigns";
 import { useAccountsQuery } from "@/hooks/useAccountQueries";
+import { DateTime } from 'luxon';
+import { zoneMap } from '@/components/Campaign/ReviewLaunch';
 
 // Add this enum at the top of your file
 export enum LeadStatus {
@@ -63,12 +65,17 @@ interface CampaignAnalyticsProps {
   leadData?: BackendLead[] | any;
   updateLeads?: (leads: any) => void;
   viewMode?: boolean;
-  initialFilterStatus?: string; // Add this prop
+  initialFilterStatus?: string;
   campaignInsights?: {
     connectionRequestsSent: number,
     connectionRequestsAccepted: number,
     messagesSent: number,
     responses: number
+  };
+  campaignData?: {
+    localOperationalTimes?: {
+      timezone?: string;
+    }
   };
 }
 
@@ -77,8 +84,16 @@ const CampaignAnalytics = ({
   leadData = [],
   updateLeads = () => { },
   viewMode = false,
-  initialFilterStatus = 'all'
+  initialFilterStatus = 'all',
+  campaignData = {}
 }: CampaignAnalyticsProps) => {
+  // Extract timezone from campaign data or use browser default
+  const userTimezone = useMemo(() => {
+    return campaignData?.localOperationalTimes?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  }, [campaignData]);
+
+
+  console.log(  "Campaign Analytics Props:", userTimezone)
   // Existing state variables
   const { id } = useParams();
   const [searchQuery, setSearchQuery] = useState('');
@@ -282,13 +297,19 @@ const CampaignAnalytics = ({
       console.log("Mapped Leads:", mappedLeads);
 
       return mappedLeads.map((lead: BackendLead, index: number) => {
-        // Format timestamp to readable date if available (keeping this for readability)
+        // Format timestamp to readable date if available using Luxon with timezone
         let formattedDate = 'N/A';
         if (lead.lastActivity) {
           const timestamp = lead.lastActivity;
           try {
-            const date = new Date(timestamp < 10000000000 ? timestamp * 1000 : timestamp);
-            formattedDate = format(date, 'HH:mm z, d MMM, yyyy');
+            const timeMs = timestamp < 10000000000 ? timestamp * 1000 : timestamp;
+            
+            // Get mapped timezone code from zoneMap if available, otherwise use userTimezone directly
+            const mappedTimezone = zoneMap[userTimezone] || userTimezone;
+            
+            formattedDate = DateTime.fromMillis(timeMs)
+              .setZone(mappedTimezone)
+              .toFormat('HH:mm (ZZZZ), d MMM, yyyy');
           } catch (e) {
             formattedDate = 'Invalid date';
           }
@@ -316,7 +337,7 @@ const CampaignAnalytics = ({
       setShowDataWarning(true);
       return getSampleLeads();
     }
-  }, [leadData, accountNameMap]);
+  }, [leadData, accountNameMap, userTimezone]); // Add userTimezone dependency
 
   // Analytics data calculated from actual leads
   const analytics = useMemo(() => [
@@ -534,10 +555,10 @@ const CampaignAnalytics = ({
               {/* Add AsyncButton for refreshing leads */}
               <AsyncButton
                 onClick={refreshLeads}
-                label="Refresh Leads"
+                label="Refresh Leads Status"
                 loadingLabel="Refreshing..."
-                successMessage="Leads refreshed successfully"
-                errorMessage="Failed to refresh leads"
+                successMessage="Leads Status refreshed successfully"
+                errorMessage="Failed to refresh leads status"
                 variant="outline"
                 size="sm"
                 icon={<RefreshCw className="h-4 w-4 mr-2" />}
@@ -802,7 +823,7 @@ const CampaignAnalytics = ({
                               <DropdownMenuItem
                                 key={status.value}
                                 onClick={() => setStatusFilter(status.value)}
-                                className={`text-sm px-3 py-2 rounded-sm cursor-pointer flex justify-between items-center ${statusFilter === status.value ? 'bg-gray-100' : 'hover:bg-gray-50'
+                                className={`text-sm px-3 py-2 rounded-sm cursor-pointer ${statusFilter === status.value ? 'bg-gray-100' : 'hover:bg-gray-50'
                                   }`}
                               >
                                 <span>{status.label}</span>
@@ -921,9 +942,9 @@ const CampaignAnalytics = ({
                       >
                         <TableCell className="py-3 px-4">
                           {/* Show only the name or shortened URL */}
-                          <span className="text-gray-900 font-medium">
+                          <a href={lead.url} target="_blank" rel="noopener noreferrer" className="text-gray-900 hover:underline font-medium">
                             {lead.name || shortenLinkedInUrl(lead.url)}
-                          </span>
+                          </a>
                         </TableCell>
                         <TableCell className="py-3 px-4">
                           <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${statusDisplay.className} inline-block min-w-0`}>

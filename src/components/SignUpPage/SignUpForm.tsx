@@ -105,16 +105,16 @@ const SignupForm = () => {
 
                 {/* Username */}
                 <div className="space-y-2">
-                    <Label htmlFor="username" className="text-sm font-medium text-gray-700">
-                        Username
+                    <Label htmlFor="email" className="text-sm font-medium text-gray-700">
+                        Workspace Email
                     </Label>
                     <div className="relative">
                         <User className="absolute left-3 top-3 h-5 w-5 text-[#5a41cd]" />
                         <Input
-                            id="username"
-                            name="username"
+                            id="Email"
+                            name="Workspace Email"
                             type="text"
-                            placeholder="Choose a username"
+                            placeholder="Your workspace email"
                             value={username}
                             onChange={handleUsernameChange}
                             className="pl-10 py-3 rounded-xl border-[#5a41cd]/20 focus:border-[#5a41cd] focus:ring-[#5a41cd] bg-white"

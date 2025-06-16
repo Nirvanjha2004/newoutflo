@@ -106,7 +106,7 @@ const CreateCampaignContent = () => {
   };
 
   const handleBack = () => {
-    if (isViewMode) {
+    if (isViewMode || currentStep === 1) {
       navigate('/allcampaigns');
     } else if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
@@ -295,15 +295,7 @@ const CreateCampaignContent = () => {
                 Continue
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
-            ) : (
-              <Button
-                onClick={handleSubmitCampaign}
-                className="bg-primary hover:bg-primary/90 text-white"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? 'Creating...' : 'Launch Campaign'}
-              </Button>
-            )
+            ) : null
           )}
         </div>
 

@@ -113,7 +113,7 @@ export function VerificationResultsModal({
           </div>
           
           {/* Custom Variables Check */}
-          <div className="border border-gray-200 rounded-lg p-5">
+          {/* <div className="border border-gray-200 rounded-lg p-5">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Custom Variables</h3>
             
             <div className="grid grid-cols-3 gap-4">
@@ -134,7 +134,7 @@ export function VerificationResultsModal({
                 </div>
               </div>
             </div>
-          </div>
+          </div> */}
           
           {/* Data Completeness */}
           <div className="border border-gray-200 rounded-lg p-5">

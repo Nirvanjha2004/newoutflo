@@ -55,6 +55,8 @@ const Sequence: React.FC<SequenceProps> = ({
     viewMode = false
 }) => {
     // Get campaign info from store
+
+    console.log('Workflow data:', workflowData);
     const { campaign } = useCampaignStore();
     const leadListId = campaign?.leads?.leadListId || campaign?.leadListId;
 
@@ -112,13 +114,15 @@ const Sequence: React.FC<SequenceProps> = ({
                     // Follow-up message needs a delay step before it
                     const newGroupId = `api-group-${index}`;
 
+                            console.log('Step data:', step.data);
+
                     // Add delay step
                     const delayStep = {
                         id: `api-delay-${index}`,
                         type: 'delay',
                         delay: {
-                            days: Math.floor((step.data.delay || 2 * 24 * 60 * 60) / (24 * 60 * 60)),
-                            hours: Math.floor(((step.data.delay || 2 * 24 * 60 * 60) % (24 * 60 * 60)) / (60 * 60))
+                            days: Math.floor((step.data.delay ?? 0) / (24 * 60 * 60)),
+                            hours: Math.floor(((step.data.delay ?? 0) % (24 * 60 * 60)) / (60 * 60))
                         },
                         groupId: newGroupId
                     };
@@ -197,8 +201,8 @@ const Sequence: React.FC<SequenceProps> = ({
                         id: `api-delay-${index}`,
                         type: 'delay',
                         delay: {
-                            days: Math.floor((step.data.delay || 2 * 24 * 60 * 60) / (24 * 60 * 60)),
-                            hours: Math.floor(((step.data.delay || 2 * 24 * 60 * 60) % (24 * 60 * 60)) / (60 * 60))
+                            days: Math.floor((step.data.delay ?? 0) / (24 * 60 * 60)),
+                            hours: Math.floor(((step.data.delay ?? 0) % (24 * 60 * 60)) / (60 * 60))
                         },
                         groupId: newGroupId
                     });
@@ -611,7 +615,7 @@ const Sequence: React.FC<SequenceProps> = ({
         </div>
     );
 
-    // Enhanced renderDelayStep with better view mode styling
+    // Enhanced renderDelayStep with special handling for zero days
     const renderDelayStep = (step: SequenceStep) => (
         <div className={`bg-slate-50 border ${viewMode ? 'border-slate-100' : 'border-slate-200'} rounded-lg px-4 py-3`}>
             <div className="flex items-center justify-between">
@@ -623,12 +627,26 @@ const Sequence: React.FC<SequenceProps> = ({
                         <span className="text-slate-600 font-medium">Wait</span>
                         
                         {viewMode ? (
-                            // View mode - show static values
+                            // View mode - properly handle zero days
                             <span className="text-slate-600">
-                                {step.delay?.days || 0} days {step.delay?.hours ? `and ${step.delay.hours} hours` : ''} after connection is accepted
+                                {(() => {
+                                    const days = typeof step.delay?.days === 'number' ? step.delay.days : 0;
+                                    const hours = step.delay?.hours || 0;
+                                    
+                                    if (days === 0 && hours === 0) {
+                                        return '0 days';
+                                    } else if (days === 0) {
+                                        return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+                                    } else if (hours === 0) {
+                                        return `${days} ${days === 1 ? 'day' : 'days'}`;
+                                    } else {
+                                        return `${days} ${days === 1 ? 'day' : 'days'} and ${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+                                    }
+                                })()}
+                                {' after connection is accepted'}
                             </span>
                         ) : (
-                            // Edit mode - show inputs
+                            // Edit mode - unchanged
                             <>
                                 <div className="flex items-center space-x-2">
                                     <input

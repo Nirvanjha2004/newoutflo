@@ -65,8 +65,8 @@ const LinkedInSenders: React.FC<LinkedInSendersProps> = ({ selectedAccounts, upd
         profilePicture: account.profilePicture || account._randomProfileImage,
         hasWarning: account.status === 'limited' || account.status === 'warning',
         isInactive: isInactive,
-        subscription: account.premiumLevel || 'Free Account',
-        activity: `In ${account.campaignCount || 0} campaigns.`,
+        // subscription: account.premiumLevel || 'Free Account',
+        // activity: `In ${account.campaignCount || 0} campaigns.`,
         // Don't allow inactive accounts to be pre-selected
         selected: isInactive ? false : selectedAccounts.some(selected => selected.id === account.id),
         account: account, // Store the full account object for reference
@@ -134,14 +134,14 @@ const LinkedInSenders: React.FC<LinkedInSendersProps> = ({ selectedAccounts, upd
       )}
       
       <div className="p-6 border-b border-gray-200">
-        {viewMode && (
+        {/* {viewMode && (
           <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
             <p className="text-blue-800 text-sm flex items-center">
               <Eye className="w-4 h-4 mr-2" />
               You are viewing this campaign in read-only mode. Account selections cannot be changed.
             </p>
           </div>
-        )}
+        )} */}
         
         <p className="text-gray-700 mb-4">
           {viewMode 
@@ -209,8 +209,8 @@ const LinkedInSenders: React.FC<LinkedInSendersProps> = ({ selectedAccounts, upd
               <TableRow className={`${viewMode ? 'bg-blue-50/50' : 'bg-gray-50'}`}>
                 {!viewMode && <TableHead className="w-12"></TableHead>}
                 <TableHead className="text-gray-700 font-medium">Name</TableHead>
-                <TableHead className="text-gray-700 font-medium">LinkedIn Subscription</TableHead>
-                <TableHead className="text-gray-700 font-medium">Activity</TableHead>
+                {/* <TableHead className="text-gray-700 font-medium">LinkedIn Subscription</TableHead>
+                <TableHead className="text-gray-700 font-medium">Activity</TableHead> */}
                 {/* {!viewMode && <TableHead className="text-gray-700 font-medium text-center">Configure</TableHead>} */}
               </TableRow>
             </TableHeader>

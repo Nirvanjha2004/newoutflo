@@ -136,7 +136,7 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
     campaignData?.workingHours || defaultWorkingHours
   );
 
-  const [timezone, setTimezone] = useState("Target's Timezone (Recommended)");
+  const [timezone, setTimezone] = useState("IST");
   const [confirmDetails, setConfirmDetails] = useState(false);
 
   // Collapsible states - always open in view mode
@@ -749,7 +749,7 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
                           }`}
                       >
                         <Avatar className="w-8 h-8">
-                          <AvatarImage src={account.profilePicture || "/placeholder.svg"} />
+                          <AvatarImage src={account.profileImageUrl || "/placeholder.svg"} />
                           <AvatarFallback>{(account.firstName?.[0] || '') + (account.lastName?.[0] || '')}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1">
@@ -765,9 +765,9 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
                               </Badge>
                             )}
                           </div>
-                          <p className="text-xs text-gray-500">{account.email || account.id?.substring(0, 10)}</p>
+                          {/* <p className="text-xs text-gray-500">{account.email || account.id?.substring(0, 10)}</p> */}
                         </div>
-                        {!viewMode && (
+                        {/* {!viewMode && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -779,7 +779,7 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
                           >
                             <X className="w-3 h-3 text-gray-400" />
                           </Button>
-                        )}
+                        )} */}
                       </div>
                     );
                   })}
@@ -944,7 +944,7 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
                         className="w-full p-3 border border-gray-300 rounded-lg bg-white appearance-none pr-10"
                         disabled={viewMode}
                       >
-                        <option value="Target's Timezone (Recommended)">Target's Timezone (Recommended)</option>
+                        {/* <option value="Target's Timezone (Recommended)">Target's Timezone (Recommended)</option> */}
 
                         <optgroup label="UTC/GMT">
                           <option value="GMT">GMT - Greenwich Mean Time</option>
@@ -1065,7 +1065,7 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
                           </div>
                         ))}
 
-                        {!viewMode && (
+                        {/* {!viewMode && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -1075,7 +1075,7 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
                           >
                             <Plus className="w-3 h-3" />
                           </Button>
-                        )}
+                        )} */}
                       </div>
 
                       {!viewMode && (
@@ -1127,7 +1127,7 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
                   Launching Campaign...
                 </>
               ) : (
-                <>🚀 Save Time and Launch</>
+                <>🚀 Launch Campaign</>
               )}
             </Button>
           </div>
@@ -1135,7 +1135,7 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
       )}
 
       {/* Enhanced Campaign Statistics - Improved display in view mode */}
-      {viewMode && (
+      {/* {viewMode && (
         <Card className="bg-white shadow-sm border border-gray-100">
           <CardHeader className="border-b border-gray-100 bg-gray-50/60">
             <div className="flex items-center justify-between">
@@ -1155,8 +1155,8 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
               </Badge>
             </div>
           </CardHeader>
-          <CardContent className="pt-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <CardContent className="pt-6"> */}
+            {/* <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {campaignData?.stats ? (
                 <>
                   <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
@@ -1217,10 +1217,10 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
                   <p className="text-gray-500 mt-2">This campaign doesn't have any performance statistics yet.</p>
                 </div>
               )}
-            </div>
+            </div> */}
 
             {/* Campaign timeline if available */}
-            {viewMode && campaignData?.timeline && (
+            {/* {viewMode && campaignData?.timeline && (
               <div className="mt-8 border-t border-gray-100 pt-6">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">Campaign Timeline</h3>
                 <div className="space-y-3">
@@ -1236,9 +1236,9 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
-      )}
+          </CardContent> */}
+        {/* </Card> */}
+      {/* )} */}
     </div>
   );
 };

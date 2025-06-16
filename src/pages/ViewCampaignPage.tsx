@@ -39,7 +39,7 @@ const transformWorkflowData = (workflow: any[] | undefined) => {
             };
         } else if (item.action === "sendFollowUp") {
             // Get delay in milliseconds (or use default)
-            const delayMs = item.data?.delay || (2 * 24 * 60 * 60 * 1000); // Default: 2 days
+            const delayMs = item.data?.delay || 0; // Default: 2 days
 
             // Convert milliseconds to seconds for the Sequence component
             // The Sequence component expects seconds and converts to days/hours internally
@@ -601,6 +601,7 @@ const CampaignViewContent = () => {
                     campaignInsights={campaignInsights}
                     leadData={leadsToPass}
                     initialFilterStatus={leadFilterStatus}
+                    campaignData={campaignData}
                     updateLeads={(leads) => {
                         // If original leads is an array, update directly
                         if (Array.isArray(campaignData.leads)) {
@@ -668,11 +669,11 @@ const CampaignViewContent = () => {
                                 <h1 className="text-2xl font-semibold text-gray-900">
                                     {isViewMode ? campaignData.name || 'Campaign Details' : 'Create Campaign'}
                                 </h1>
-                                {isViewMode && campaignData.id && (
+                                {/* {isViewMode && campaignData.id && (
                                     <span className="text-sm text-gray-500 font-normal">
                                         (ID: {campaignData.id})
                                     </span>
-                                )}
+                                )} */}
                                 {isViewMode && (
                                     <Badge variant="outline" className="ml-1 bg-blue-100 border-blue-200 text-blue-800 flex items-center gap-1.5">
                                         <Lock className="h-3 w-3" />
@@ -681,7 +682,7 @@ const CampaignViewContent = () => {
                                 )}
                             </div>
 
-                            {isViewMode && (
+                            {/* {isViewMode && (
                                 <div className="flex flex-wrap items-center gap-2 mt-1.5 text-sm text-gray-500">
                                     <Badge className={campaignStatus.className}>
                                         {campaignStatus.label}
@@ -695,14 +696,14 @@ const CampaignViewContent = () => {
                                         </span>
                                     )}
                                 </div>
-                            )}
+                            )} */}
                         </div>
                     </div>
 
                     {/* View mode action buttons */}
                     {isViewMode && (
                         <div className="flex flex-wrap items-center gap-2">
-                            {!insightsLoading && campaignInsights && (
+                            {/* {!insightsLoading && campaignInsights && (
                                 <div className="flex items-center space-x-3 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5">
                                     <div className="flex items-center text-xs space-x-1 text-gray-500">
                                         <Users className="w-3.5 h-3.5 text-blue-500" />
@@ -717,9 +718,9 @@ const CampaignViewContent = () => {
                                         <span>{campaignInsights.messagesSent || 0}</span>
                                     </div>
                                 </div>
-                            )}
+                            )} */}
 
-                            <Button
+                            {/* <Button
                                 variant="outline"
                                 size="sm"
                                 className="border-blue-200 bg-blue-50/50 text-blue-700 hover:bg-blue-100"
@@ -735,7 +736,7 @@ const CampaignViewContent = () => {
                             >
                                 <Edit className="w-4 h-4 mr-2" />
                                 Edit Campaign
-                            </Button>
+                            </Button> */}
 
                             {campaignData.state === CampaignState.RUNNING && (
                                 <Button
@@ -806,7 +807,7 @@ const CampaignViewContent = () => {
                 </div>
 
                 {/* View mode banner */}
-                {isViewMode && (
+                {/* {isViewMode && (
                     <Alert className="mb-6 bg-blue-50 border-blue-200">
                         <div className="flex items-center">
                             <Eye className="w-4 h-4 mr-2 text-blue-600" />
@@ -815,7 +816,7 @@ const CampaignViewContent = () => {
                             </AlertDescription>
                         </div>
                     </Alert>
-                )}
+                )} */}
 
                 {/* ADD ANALYTICS CARDS HERE - for view mode only */}
                 {isViewMode && (
@@ -910,7 +911,7 @@ const CampaignAnalyticsCards = ({
                     className="h-8 text-gray-600 hover:text-gray-900"
                 >
                     <RefreshCw className={`h-3.5 w-3.5 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
-                    Refresh
+                    Refresh Anlaytics
                 </Button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -938,7 +939,7 @@ const CampaignAnalyticsCards = ({
                                     metric.value.toLocaleString()
                                 )}
                             </div>
-                            <p className="text-xs text-gray-500">Click to filter</p>
+                            <p className="text-xs text-gray-500">Click to View Leads</p>
                         </CardContent>
                     </Card>
                 ))}

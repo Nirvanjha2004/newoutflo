@@ -145,7 +145,7 @@ const AccountsContent = () => {
     <div className="flex-1 bg-[#edecfe]/20">
       {/* Header */}
       <div className="border-b border-gray-200 px-6 py-4 bg-white">
-        <div className="flex items-center justify-between mb-4">
+        {/* <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-xl font-bold text-gray-900">Account Center</h1>
           </div>
@@ -157,7 +157,7 @@ const AccountsContent = () => {
               <User size={14} />
             </Button>
           </div>
-        </div>
+        </div> */}
 
         <div className="mb-4">
           <h2 className="text-2xl font-bold text-gray-900 mb-1">
@@ -230,7 +230,7 @@ const AccountsContent = () => {
           <div className="grid grid-cols-4 gap-4 px-4 py-3 border-b border-gray-200 bg-gray-50">
             <div className="font-medium text-gray-700 text-sm">LinkedIn Account</div>
             <div className="font-medium text-gray-700 text-sm">Status</div>
-            <div className="font-medium text-gray-700 text-sm">Sending limits</div>
+            <div className="font-medium text-gray-700 text-sm">Daily Stats</div>
             <div className="font-medium text-gray-700 text-sm"></div>
           </div>
 
@@ -270,13 +270,13 @@ const AccountsContent = () => {
                   </div>
 
                   <div className="flex items-center space-x-3 text-xs text-gray-600">
-                    <div className="flex items-center space-x-1">
+                    {/* <div className="flex items-center space-x-1">
                       <span className="text-gray-500">📤</span>
                       <span>{account.accountActions?.dailyConnectionLimit || 0}/day</span>
                       {account.accountActions?.weeklyConnectionLimitExceeded && (
                         <span className="text-red-500 ml-1">(Exceeded)</span>
                       )}
-                    </div>
+                    </div> */}
                     <div className="flex items-center space-x-1">
                       <span className="text-gray-500">📅</span>
                       <span>{account.accountActions?.sendConnectionReq || 0} invitations sent</span>

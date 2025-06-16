@@ -6,33 +6,10 @@ const LoginPage = () => {
   return (
     <div className="min-h-screen bg-[#edecfe] flex items-center justify-center p-4">
       <div className="w-full max-w-6xl mx-auto">
+
+        
         <div className="grid lg:grid-cols-2 gap-12 items-center">
-          {/* Left Side - Illustration/Content */}
-          <div className="hidden lg:block text-center">
-            <div className="inline-flex items-center justify-center w-32 h-32 bg-[#5a41cd]/10 rounded-full mb-8">
-              <Users className="w-16 h-16 text-[#5a41cd]" />
-            </div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">
-              Welcome to <span className="text-[#5a41cd]">OutFlo</span>
-            </h1>
-            <p className="text-xl text-gray-600 mb-8 max-w-md mx-auto">
-              Streamline your outreach and connect with your audience like never before.
-            </p>
-            <div className="space-y-4 max-w-sm mx-auto">
-              <div className="flex items-center space-x-3 text-gray-700">
-                <div className="w-2 h-2 bg-[#5a41cd] rounded-full"></div>
-                <span>Easy LinkedIn integration</span>
-              </div>
-              <div className="flex items-center space-x-3 text-gray-700">
-                <div className="w-2 h-2 bg-[#5a41cd] rounded-full"></div>
-                <span>Centralized conversation management</span>
-              </div>
-              <div className="flex items-center space-x-3 text-gray-700">
-                <div className="w-2 h-2 bg-[#5a41cd] rounded-full"></div>
-                <span>Smart campaign automation</span>
-              </div>
-            </div>
-          </div>
+
 
           {/* Right Side - Auth Form */}
           <div className="w-full max-w-md mx-auto lg:mx-0">
@@ -50,6 +27,34 @@ const LoginPage = () => {
               <AuthForm />
             </div>
           </div>
+          {/* Left Side - Illustration/Content */}
+          <div className="hidden lg:block text-center">
+            <div className="inline-flex items-center justify-center w-32 h-32 bg-[#5a41cd]/10 rounded-full mb-8">
+              <img src='image.png' className="w-32 h-32 text-[#5a41cd]" />
+            </div>
+            <h1 className="text-4xl font-bold text-gray-900 mb-4">
+              Welcome to <span className="text-[#5a41cd]">OutFlo</span>
+            </h1>
+            <p className="text-xl text-gray-600 mb-8 max-w-md mx-auto">
+              Streamline your outreach and connect with your audience like never before.
+            </p>
+            {/* <div className="space-y-4 max-w-sm mx-auto">
+              <div className="flex items-center space-x-3 text-gray-700">
+                <div className="w-2 h-2 bg-[#5a41cd] rounded-full"></div>
+                <span>Easy LinkedIn integration</span>
+              </div>
+              <div className="flex items-center space-x-3 text-gray-700">
+                <div className="w-2 h-2 bg-[#5a41cd] rounded-full"></div>
+                <span>Centralized conversation management</span>
+              </div>
+              <div className="flex items-center space-x-3 text-gray-700">
+                <div className="w-2 h-2 bg-[#5a41cd] rounded-full"></div>
+                <span>Smart campaign automation</span>
+              </div>
+            </div> */}
+          </div>
+
+          
         </div>
       </div>
     </div>

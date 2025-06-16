@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Send, Plus, MoreHorizontal, Star, Settings, Paperclip, Mic } from "lucide-react";
+import { Send, Plus, MoreHorizontal, Star, Settings, Paperclip, Mic, BadgeCheck } from "lucide-react";
 import { EmojiPicker } from "@/components/Inbox/EmojiPicker";
 import { Conversation, Message } from "@/types/inbox";
 import { useMessagesQuery } from "@/hooks/useInboxQueries";
@@ -151,10 +151,10 @@ export const ConversationView = ({ conversation, onClose, onProfilePreview }: Co
   // const { data: appUserAccountsData = [] } = useAccountsQuery(); // Add this import and hook at the top
 
   // Find the contact account (the one that's NOT your own account)
-  const contactAccount = conversation.accounts.find(acc => 
+  const contactAccount = conversation.accounts.find(acc =>
     !appUserAccountsData.some(userAcc => userAcc.urn === acc.urn)
   ) || conversation.accounts[0];
-  
+
   const fullName = `${contactAccount.firstName || ''} ${contactAccount.lastName || ''}`.trim();
   const initials = `${(contactAccount.firstName || ' ')[0] || ''}${(contactAccount.lastName || ' ')[0] || ''}`.toUpperCase();
 
@@ -181,12 +181,49 @@ export const ConversationView = ({ conversation, onClose, onProfilePreview }: Co
             <div>
               <div className="flex items-center">
                 <h3 className="font-bold text-gray-900 text-lg">{fullName || 'Contact'}</h3>
-                <Star size={16} className="text-gray-300 hover:text-yellow-400 cursor-pointer transition-colors ml-2" />
+                {/* <Star size={16} className="text-gray-300 hover:text-yellow-400 cursor-pointer transition-colors ml-2" /> */}
               </div>
-              <p className="text-sm text-gray-600">
+              
+              {/* Add Talking From indicator */}
+              <div className="flex items-center mt-0.5">
+                <span className="text-xs text-gray-500 font-medium">Talking from:</span>
+                <div className="flex items-center ml-2 bg-purple-50 rounded-full pl-1 pr-2.5 py-0.5 border border-purple-100">
+                  <Avatar className="w-4 h-4 mr-1">
+                    {(() => {
+                      const senderAccount = appUserAccountsData[0];
+                      const userInitials = `${(senderAccount?.firstName || ' ')[0] || ''}${(senderAccount?.lastName || ' ')[0] || ''}`.toUpperCase();
+                      
+                      return senderAccount?.profileImageUrl ? (
+                        <AvatarImage
+                          src={senderAccount.profileImageUrl}
+                          alt="You"
+                          className="object-cover"
+                          referrerPolicy="no-referrer"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                      ) : (
+                        <AvatarFallback className="bg-purple-100 text-purple-600 text-[8px]">
+                          {userInitials || 'You'}
+                        </AvatarFallback>
+                      );
+                    })()}
+                  </Avatar>
+                  <span className="text-xs bg-purple-50 font-medium text-purple-700">
+                    {(() => {
+                      const senderAccount = appUserAccountsData[0];
+                      return senderAccount ? 
+                        `${senderAccount.firstName || ''} ${senderAccount.lastName || ''}`.trim() : 
+                        'Your Account';
+                    })()}
+                  </span>
+                  <BadgeCheck size={10} className="ml-1 fill-purple-600 text-white" strokeWidth={2} />
+                </div>
+              </div>
+              
+              {/* <p className="text-sm text-gray-600">
                 {contactAccount.location || 'Location'} | {contactAccount.title || 'Title'}
-              </p>
-              <div className="flex items-center mt-1">
+              </p> */}
+              {/* <div className="flex items-center mt-1">
                 <span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full border border-purple-200">
                   Profile Connections
                 </span>
@@ -195,7 +232,7 @@ export const ConversationView = ({ conversation, onClose, onProfilePreview }: Co
                   <span className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1"></span>
                   Active now
                 </span>
-              </div>
+              </div> */}
             </div>
           </div>
 
@@ -250,12 +287,23 @@ export const ConversationView = ({ conversation, onClose, onProfilePreview }: Co
                 <div className={`flex items-end ${own ? 'justify-end' : 'justify-start'} mb-5`}>
                   {!own && (
                     <Avatar className="w-8 h-8 mr-2 mb-1 flex-shrink-0 ring-2 ring-gray-100">
-                      <AvatarFallback className="bg-gray-200 text-gray-600 text-xs">
-                        {initials}
-                      </AvatarFallback>
+                      {contactAccount.profileImageUrl ? (
+                        <AvatarImage
+                          src={contactAccount.profileImageUrl}
+                          alt={fullName}
+                          className="object-cover"
+                          referrerPolicy="no-referrer"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                      ) : (
+                        <AvatarFallback className="bg-gray-200 text-gray-600 text-xs">
+                          {initials}
+                        </AvatarFallback>
+                      )}
                     </Avatar>
                   )}
-                  <div className={`message max-w-xs lg:max-w-md ${own ? 'ml-12' : 'mr-12'}`}>
+
+                  <div className={`message max-w-xs lg:max-w-md ${own ? 'mr-0' : 'ml-0 mr-0'}`}>
                     <div className={`px-4 py-3 rounded-2xl ${own
                       ? 'bg-purple-600 text-white rounded-br-none shadow-md'
                       : 'bg-white text-gray-900 border border-gray-200 rounded-bl-none shadow-sm'
@@ -267,6 +315,32 @@ export const ConversationView = ({ conversation, onClose, onProfilePreview }: Co
                       {own && <span className="ml-1 font-medium">You</span>}
                     </div>
                   </div>
+
+                  {/* Add avatar for own messages */}
+                  {own && (
+                    <Avatar className="w-8 h-8 ml-2 mb-1 flex-shrink-0 ring-2 ring-purple-100">
+                      {/* Find the user account that sent this message */}
+                      {(() => {
+                        // Find the user account that matches the sender URN
+                        const senderAccount = appUserAccountsData.find(acc => acc.urn === msg.senderUrn) || appUserAccountsData[0];
+                        const userInitials = `${(senderAccount?.firstName || ' ')[0] || ''}${(senderAccount?.lastName || ' ')[0] || ''}`.toUpperCase();
+
+                        return senderAccount?.profileImageUrl ? (
+                          <AvatarImage
+                            src={senderAccount.profileImageUrl}
+                            alt="You"
+                            className="object-cover"
+                            referrerPolicy="no-referrer"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                          />
+                        ) : (
+                          <AvatarFallback className="bg-purple-100 text-purple-600 text-xs">
+                            {userInitials || 'You'}
+                          </AvatarFallback>
+                        );
+                      })()}
+                    </Avatar>
+                  )}
                 </div>
               </div>
             );
@@ -290,15 +364,26 @@ export const ConversationView = ({ conversation, onClose, onProfilePreview }: Co
         {/* Message composition area with improved styling */}
         <div className="flex items-end space-x-3">
           <div className="flex-1 relative">
-            <Input
+            <textarea
               placeholder="Type your message here..."
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
-              className="pr-24 border-2 border-gray-200 focus:border-purple-500 focus:outline-none focus:ring-0 bg-white rounded-lg py-3 pl-4 shadow-sm "
-              style={{ boxShadow: 'none', borderColor: '#e5e7eb' }} // optional inline override
-
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage();
+                }
+              }}
+              rows={1}
+              className="resize-none pr-24 border-2 border-gray-200 focus:border-purple-500 focus:outline-none focus:ring-0 bg-white rounded-lg py-3 pl-4 shadow-sm w-full overflow-hidden max-h-[140px]"
+              style={{ boxShadow: 'none', borderColor: '#e5e7eb' }}
+              onInput={(e) => {
+                const el = e.target as HTMLTextAreaElement;
+                el.style.height = 'auto';
+                el.style.height = `${el.scrollHeight}px`;
+              }}
             />
+
             <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">
               <EmojiPicker onEmojiSelect={handleEmojiSelect} />
               <Button variant="ghost" size="icon" className="w-8 h-8 text-gray-400 hover:text-purple-500 hover:bg-purple-50 transition-colors">
@@ -309,7 +394,7 @@ export const ConversationView = ({ conversation, onClose, onProfilePreview }: Co
           <Button
             onClick={handleSendMessage}
             disabled={!message.trim() || postMessageMutation.isPending}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2.5 rounded-lg shadow transition-all duration-200 flex items-center hover:translate-y-[-2px]"
+            className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2.5 rounded-lg mb-2.5 shadow transition-all duration-200 flex items-center hover:translate-y-[-2px]"
           >
             {postMessageMutation.isPending ? (
               <span className="flex items-center">
@@ -328,33 +413,52 @@ export const ConversationView = ({ conversation, onClose, onProfilePreview }: Co
           </Button>
         </div>
 
-        {/* Enhanced message tools bar */}
+        {/* Enhanced message tools bar with sender profile */}
         <div className="flex flex-wrap items-center justify-between mt-4 px-1">
+          {/* Left side actions - can be uncommented if needed */}
           {/* <div className="flex items-center space-x-2 mb-2 sm:mb-0">
             <Button variant="ghost" className="bg-white text-purple-700 hover:bg-purple-50 px-2.5 py-1.5 rounded-md text-xs flex items-center h-8">
               <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5"><rect width="18" height="14" x="3" y="4" rx="2"></rect><line x1="12" x2="12" y1="4" y2="18"></line></svg>
               Templates
             </Button>
-            <Button variant="ghost" className="bg-white text-purple-700 hover:bg-purple-50 px-2.5 py-1.5 rounded-md text-xs flex items-center h-8">
-              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-              Files
-            </Button>
-            <Button variant="ghost" className="bg-white text-purple-700 hover:bg-purple-50 px-2.5 py-1.5 rounded-md text-xs flex items-center h-8">
-              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" x2="12" y1="8" y2="16"></line><line x1="8" x2="16" y1="12" y2="12"></line></svg>
-              More
-            </Button>
           </div> */}
 
-          {/* <div className="flex items-center text-xs text-gray-500 border-l pl-3 border-gray-200">
-            <span className="mr-2 font-medium">From:</span>
-            <div className="flex items-center bg-white border border-purple-200 rounded-full pl-1 pr-3 py-1 shadow-sm">
+          {/* Sender profile indicator */}
+          <div className="flex items-center text-xs text-gray-500 ml-auto">
+            <span className="mr-2 font-medium">Sender:</span>
+            <div className="flex items-center bg-purple-50 !bg-purple-50 border border-purple-200 rounded-full pl-1 pr-3 py-1 shadow-sm" style={{ backgroundColor: "#f5f3ff" }}>
               <Avatar className="w-5 h-5 mr-1.5">
-                <AvatarFallback className="bg-purple-600 text-white text-[10px]">H</AvatarFallback>
+                {(() => {
+                  // Get the current user's account (first account or primary account)
+                  const senderAccount = appUserAccountsData[0]; // You might want to add logic to select a specific account
+                  const userInitials = `${(senderAccount?.firstName || ' ')[0] || ''}${(senderAccount?.lastName || ' ')[0] || ''}`.toUpperCase();
+
+                  return senderAccount?.profileImageUrl ? (
+                    <AvatarImage
+                      src={senderAccount.profileImageUrl}
+                      alt={`${senderAccount.firstName} ${senderAccount.lastName}`}
+                      className="object-cover"
+                      referrerPolicy="no-referrer"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  ) : (
+                    <AvatarFallback className="bg-purple-100 text-purple-600 text-[10px]">
+                      {userInitials || 'You'}
+                    </AvatarFallback>
+                  );
+                })()}
               </Avatar>
-              <span className="font-medium text-gray-700">Hrishikesh Vibhandik</span>
-              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-1.5 text-gray-400"><path d="m6 9 6 6 6-6"></path></svg>
+              <span className="font-medium text-gray-700">
+                {(() => {
+                  const senderAccount = appUserAccountsData[0];
+                  return senderAccount ?
+                    `${senderAccount.firstName || ''} ${senderAccount.lastName || ''}`.trim() :
+                    'Your Account';
+                })()}
+              </span>
+              <BadgeCheck size={14} className="ml-1 fill-purple-600 text-white h-5 w-5" strokeWidth={2} />
             </div>
-          </div> */}
+          </div>
         </div>
       </div>
     </div>
