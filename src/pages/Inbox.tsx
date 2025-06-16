@@ -22,8 +22,7 @@ const InboxMainContent = () => {
       <div className="w-full bg-white border-b border-gray-200 py-3 px-4 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <h1 className="text-[24px] font-extrabold text-black">Uni<span className="text-[24px] font-extrabold text-purple-600">Box</span></h1>
-            <span className="bg-indigo-100 text-indigo-800 text-xs px-2 py-0.5 rounded-full font-medium">Beta</span>
+            <h1 className="text-[24px] font-extrabold text-black">UniBox</h1>
           </div>
           {/* <div className="flex items-center space-x-3">
             <button className="text-gray-500 hover:text-gray-700">
