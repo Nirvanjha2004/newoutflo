@@ -33,7 +33,7 @@ const App = () => (
           {/* Protected routes - wrapped with Root component for auth check */}
           <Route element={<Root />}>
             {/* Dashboard routes */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/" element={<Navigate to="/campaign" replace />} />
             <Route path="/dashboard" element={<ComingSoon />} />
             <Route path="/inbox" element={<Inbox />} />
             <Route path="/accounts" element={<Accounts />} />
@@ -46,10 +46,10 @@ const App = () => (
             <Route path="/allcampaigns" element={<CampaignsList />} />
             
             {/* Other protected routes */}
-            <Route path="/calendar" element={<ComingSoon />} />
+            {/* <Route path="/calendar" element={<ComingSoon />} />
             <Route path="/analytics" element={<ComingSoon />} />
             <Route path="/settings" element={<ComingSoon />} />
-            <Route path="/coming-soon/:feature" element={<ComingSoon />} />
+            <Route path="/coming-soon/:feature" element={<ComingSoon />} /> */}
           </Route>
           
           {/* Catch-all route */}
