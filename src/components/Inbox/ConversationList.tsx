@@ -304,10 +304,10 @@ export const ConversationList = ({
           <h3 className="text-xs font-medium text-gray-700 mb-2">Filter by sender</h3>
           <button
             onClick={() => setIsSenderFilterOpen(prev => !prev)}
-            className="flex items-center text-xs text-gray-600 hover:text-gray-900 py-1 px-2 border border-gray-200 rounded-md"
+            className="flex items-center bg-white text-xs text-gray-600 hover:text-gray-900 py-1 px-2 border border-gray-200 rounded-md"
           >
             {activeFiltersCount > 0 && (
-              <span className="mr-1 bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full">
+              <span className="mr-1 bg-white text-indigo-700 px-1.5 py-0.5 rounded-full">
                 {activeFiltersCount}
               </span>
             )}
@@ -399,7 +399,10 @@ export const ConversationList = ({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto bg-indigo-50/70 p-4">
+    <div style={{
+        scrollbarWidth: 'none',           // Firefox
+        msOverflowStyle: 'none',          // IE 10+
+      }} className="flex-1 overflow-y-auto bg-indigo-50/70 p-4 scrollbar-none">
       {/* Display sender account filters */}
       {renderSenderAccountFilters()}
 

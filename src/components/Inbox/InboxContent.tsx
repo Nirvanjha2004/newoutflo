@@ -23,14 +23,14 @@ export const InboxContent = ({ selectedConversation, onSelectConversation, onPro
   const [isPendingFilter, setIsPendingFilter] = useState(false);
   const [isMyMessagesFilter, setIsMyMessagesFilter] = useState(false);
   const [showAllAccounts, setShowAllAccounts] = useState(false);
-  
+
   // Fetch accounts data
   const { data: accounts = [], isLoading: accountsLoading } = useAccountsQuery();
-  
+
   // Process accounts to get active ones
   const activeAccounts = useMemo(() => {
     if (!accounts || accounts.length === 0) return [];
-    
+
     // Filter for active accounts - adjust the criteria based on your data structure
     return accounts
       .filter(account => account?.status === "active" || account?.isActive)
@@ -38,7 +38,7 @@ export const InboxContent = ({ selectedConversation, onSelectConversation, onPro
         const firstName = account?.firstName || '';
         const lastName = account?.lastName || '';
         const name = `${firstName} ${lastName}`.trim() || account?.email?.split('@')[0] || 'User';
-        
+
         // Get initials from name
         const initials = name
           .split(' ')
@@ -46,7 +46,7 @@ export const InboxContent = ({ selectedConversation, onSelectConversation, onPro
           .join('')
           .slice(0, 2)
           .toUpperCase();
-          
+
         return {
           id: account?.id,
           name,
@@ -68,12 +68,15 @@ export const InboxContent = ({ selectedConversation, onSelectConversation, onPro
 
   return (
     <>
-      <div className="w-96 bg-white border-r border-gray-200 flex flex-col shadow-sm">
+      <div className="w-96 !bg-indigo-50/70 border-r border-gray-300 flex flex-col shadow-sm">
         {/* Header */}
-        <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+        <div className="p-4 border-b border-gray-100 bg-white">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-xl font-bold text-gray-900 mb-1">The Centralised Inbox</h3>
+              <h2 className="text-2xl font-bold text-gray-900 mb-1">
+                OutFlo <span className="text-[#5a41cd]">UniBox</span>
+              </h2>
+              <p className="text-xs text-gray-600">Your Smart Central Inbox across LinkedIn accounts</p>
             </div>
           </div>
 
@@ -83,9 +86,9 @@ export const InboxContent = ({ selectedConversation, onSelectConversation, onPro
               <h3 className="text-xs font-medium text-gray-700">Active Accounts</h3>
               <div className="flex items-center space-x-1">
                 {activeAccounts.length > 3 && (
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     className="h-6 px-1.5 text-xs text-gray-500 hover:text-gray-700"
                     onClick={toggleAccountsVisibility}
                   >
@@ -102,7 +105,7 @@ export const InboxContent = ({ selectedConversation, onSelectConversation, onPro
                 </Button>
               </div>
             </div>
-            
+
             {accountsLoading ? (
               <div className="flex items-center h-7 space-x-2">
                 <div className="w-20 h-5 bg-gray-100 animate-pulse rounded"></div>
@@ -111,8 +114,8 @@ export const InboxContent = ({ selectedConversation, onSelectConversation, onPro
             ) : activeAccounts.length > 0 ? (
               <div className={`flex flex-wrap gap-2 transition-all duration-200 ${showAllAccounts ? 'max-h-48' : 'max-h-10'} overflow-hidden`}>
                 {visibleAccounts.map((account) => (
-                  <div 
-                    key={account.id} 
+                  <div
+                    key={account.id}
                     className="flex items-center space-x-1 px-2 py-1 rounded-md hover:bg-gray-50 border border-gray-100 transition-colors"
                   >
                     <Avatar className="w-5 h-5">
@@ -129,7 +132,7 @@ export const InboxContent = ({ selectedConversation, onSelectConversation, onPro
                   </div>
                 ))}
                 {!showAllAccounts && activeAccounts.length > 3 && (
-                  <div 
+                  <div
                     className="flex items-center px-2 py-1 rounded-md text-gray-500 hover:bg-gray-50 hover:text-gray-700 cursor-pointer"
                     onClick={toggleAccountsVisibility}
                   >
@@ -143,6 +146,12 @@ export const InboxContent = ({ selectedConversation, onSelectConversation, onPro
           </div>
 
           {/* Enhanced Search with Filter on the right */}
+
+        </div>
+
+        <div className="flex flex-col bg-indigo-50/70 pb-0 pl-3 pr-3 pt-4 rounded-lg shadow-sm border-t border-gray-300">
+
+
           <div className="flex items-center space-x-2 mb-0">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={14} />
@@ -153,9 +162,9 @@ export const InboxContent = ({ selectedConversation, onSelectConversation, onPro
                 className="pl-9 pr-4 border-gray-300 focus:border-blue-500 focus:ring-blue-500 bg-white shadow-sm h-9 text-sm w-full"
               />
             </div>
-            
+
             {/* ConversationFilter moved to the right of search */}
-            <ConversationsFilter 
+            <ConversationsFilter
               activeTab={activeFilter}
               pending={isPendingFilter}
               setPending={setIsPendingFilter}
@@ -165,13 +174,13 @@ export const InboxContent = ({ selectedConversation, onSelectConversation, onPro
           </div>
 
           {/* Filter tags display section */}
-          <div className="mb-3 flex flex-wrap gap-2">
+          <div className="mt-1 flex flex-wrap gap-1">
             {/* Search Tag */}
             {searchTerm && (
               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-50 text-blue-700 border border-blue-200">
                 <Search size={10} className="mr-1" />
                 "{searchTerm}"
-                <button 
+                <button
                   onClick={() => setSearchTerm("")}
                   className="ml-1 text-blue-400 hover:text-blue-600 transition-colors"
                 >
@@ -179,13 +188,13 @@ export const InboxContent = ({ selectedConversation, onSelectConversation, onPro
                 </button>
               </span>
             )}
-            
+
             {/* Pending Filter Tag */}
             {isPendingFilter && (
               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-amber-50 text-amber-700 border border-amber-200">
                 <Bell size={10} className="mr-1" />
                 Awaiting Response
-                <button 
+                <button
                   onClick={() => setIsPendingFilter(false)}
                   className="ml-1 text-amber-800 hover:text-amber-900"
                 >
@@ -197,7 +206,7 @@ export const InboxContent = ({ selectedConversation, onSelectConversation, onPro
         </div>
 
         {/* Conversation List - Update props to include new filters */}
-        <ConversationList 
+        <ConversationList
           searchTerm={searchTerm}
           activeFilter={activeFilter}
           isPendingFilter={isPendingFilter}
@@ -207,7 +216,7 @@ export const InboxContent = ({ selectedConversation, onSelectConversation, onPro
         />
       </div>
 
-      <InboxFiltersDialog 
+      <InboxFiltersDialog
         isOpen={isFiltersOpen}
         onClose={() => setIsFiltersOpen(false)}
       />

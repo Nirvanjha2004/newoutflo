@@ -35,8 +35,9 @@ export const Sidebar = ({ isExpanded, onToggle, activePage = 'campaigns' }: Side
   const sidebarItems = [
     // { icon: LayoutDashboard, path: "/", name: "Dashboard", id: "dashboard" },
     { icon: MessageSquare, path: "/inbox", name: "Unibox", id: "inbox" },
-    { icon: Users, path: "/accounts", name: "Accounts", id: "accounts" },
     { icon: ListPlus, path: "/allcampaigns", name: "Campaigns", id: "campaigns" },
+    { icon: Users, path: "/accounts", name: "Accounts", id: "accounts" },
+
     // { icon: Calendar, path: "/calendar", name: "Calendar", id: "calendar" },
     // { icon: BarChart3, path: "/analytics", name: "Analytics", id: "analytics" },
     // { icon: Settings, path: "/settings", name: "Settings", id: "settings" },

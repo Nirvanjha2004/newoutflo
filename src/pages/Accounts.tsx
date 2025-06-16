@@ -177,11 +177,11 @@ const AccountsContent = () => {
                 The LinkedIn accounts are called senders when put in a campaign. Connect multiple LinkedIn sending accounts on one campaign to increase your daily sending volume.
               </p>
             </div>
-            <div className="flex-shrink-0">
+            {/* <div className="flex-shrink-0">
               <Badge className="bg-green-100 text-green-700 border-green-200 text-xs">
                 Unlimited slots available
-              </Badge>
-            </div>
+              </Badge> */}
+            {/* </div> */}
           </div>
         </div>
 
@@ -230,7 +230,7 @@ const AccountsContent = () => {
           <div className="grid grid-cols-4 gap-4 px-4 py-3 border-b border-gray-200 bg-gray-50">
             <div className="font-medium text-gray-700 text-sm">LinkedIn Account</div>
             <div className="font-medium text-gray-700 text-sm">Status</div>
-            <div className="font-medium text-gray-700 text-sm">Daily Stats</div>
+            <div className="font-medium text-gray-700 text-sm">Todays Activities</div>
             <div className="font-medium text-gray-700 text-sm"></div>
           </div>
 
