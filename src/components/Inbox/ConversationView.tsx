@@ -158,6 +158,15 @@ export const ConversationView = ({ conversation, onClose, onProfilePreview }: Co
   const fullName = `${contactAccount.firstName || ''} ${contactAccount.lastName || ''}`.trim();
   const initials = `${(contactAccount.firstName || ' ')[0] || ''}${(contactAccount.lastName || ' ')[0] || ''}`.toUpperCase();
 
+  // Find the sender account (the user's account in this conversation)
+  const senderAccount =
+    conversation.accounts.find(acc =>
+      appUserAccountsData.some(userAcc => userAcc.urn === acc.urn)
+    ) || appUserAccountsData[0];
+
+  const senderFullName = `${senderAccount?.firstName || ''} ${senderAccount?.lastName || ''}`.trim();
+  const senderInitials = `${(senderAccount?.firstName || ' ')[0] || ''}${(senderAccount?.lastName || ' ')[0] || ''}`.toUpperCase();
+
   return (
     <div className="flex-1 flex flex-col h-full">
       {/* Profile Header */}
@@ -183,43 +192,33 @@ export const ConversationView = ({ conversation, onClose, onProfilePreview }: Co
                 <h3 className="font-bold text-gray-900 text-lg">{fullName || 'Contact'}</h3>
                 {/* <Star size={16} className="text-gray-300 hover:text-yellow-400 cursor-pointer transition-colors ml-2" /> */}
               </div>
-              
-              {/* Add Talking From indicator */}
+
+              {/* Talking from indicator */}
               <div className="flex items-center mt-0.5">
                 <span className="text-xs text-gray-500 font-medium">Talking from:</span>
                 <div className="flex items-center ml-2 bg-purple-50 rounded-full pl-1 pr-2.5 py-0.5 border border-purple-100">
                   <Avatar className="w-4 h-4 mr-1">
-                    {(() => {
-                      const senderAccount = appUserAccountsData[0];
-                      const userInitials = `${(senderAccount?.firstName || ' ')[0] || ''}${(senderAccount?.lastName || ' ')[0] || ''}`.toUpperCase();
-                      
-                      return senderAccount?.profileImageUrl ? (
-                        <AvatarImage
-                          src={senderAccount.profileImageUrl}
-                          alt="You"
-                          className="object-cover"
-                          referrerPolicy="no-referrer"
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                        />
-                      ) : (
-                        <AvatarFallback className="bg-purple-100 text-purple-600 text-[8px]">
-                          {userInitials || 'You'}
-                        </AvatarFallback>
-                      );
-                    })()}
+                    {senderAccount?.profileImageUrl ? (
+                      <AvatarImage
+                        src={senderAccount.profileImageUrl}
+                        alt={senderFullName}
+                        className="object-cover"
+                        referrerPolicy="no-referrer"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    ) : (
+                      <AvatarFallback className="bg-purple-100 text-purple-600 text-[8px]">
+                        {senderInitials || 'You'}
+                      </AvatarFallback>
+                    )}
                   </Avatar>
                   <span className="text-xs bg-purple-50 font-medium text-purple-700">
-                    {(() => {
-                      const senderAccount = appUserAccountsData[0];
-                      return senderAccount ? 
-                        `${senderAccount.firstName || ''} ${senderAccount.lastName || ''}`.trim() : 
-                        'Your Account';
-                    })()}
+                    {senderFullName || 'Your Account'}
                   </span>
                   <BadgeCheck size={10} className="ml-1 fill-purple-600 text-white" strokeWidth={2} />
                 </div>
               </div>
-              
+
               {/* <p className="text-sm text-gray-600">
                 {contactAccount.location || 'Location'} | {contactAccount.title || 'Title'}
               </p> */}
@@ -428,33 +427,22 @@ export const ConversationView = ({ conversation, onClose, onProfilePreview }: Co
             <span className="mr-2 font-medium">Sender:</span>
             <div className="flex items-center bg-purple-50 !bg-purple-50 border border-purple-200 rounded-full pl-1 pr-3 py-1 shadow-sm" style={{ backgroundColor: "#f5f3ff" }}>
               <Avatar className="w-5 h-5 mr-1.5">
-                {(() => {
-                  // Get the current user's account (first account or primary account)
-                  const senderAccount = appUserAccountsData[0]; // You might want to add logic to select a specific account
-                  const userInitials = `${(senderAccount?.firstName || ' ')[0] || ''}${(senderAccount?.lastName || ' ')[0] || ''}`.toUpperCase();
-
-                  return senderAccount?.profileImageUrl ? (
-                    <AvatarImage
-                      src={senderAccount.profileImageUrl}
-                      alt={`${senderAccount.firstName} ${senderAccount.lastName}`}
-                      className="object-cover"
-                      referrerPolicy="no-referrer"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                    />
-                  ) : (
-                    <AvatarFallback className="bg-purple-100 text-purple-600 text-[10px]">
-                      {userInitials || 'You'}
-                    </AvatarFallback>
-                  );
-                })()}
+                {senderAccount?.profileImageUrl ? (
+                  <AvatarImage
+                    src={senderAccount.profileImageUrl}
+                    alt={senderFullName}
+                    className="object-cover"
+                    referrerPolicy="no-referrer"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
+                ) : (
+                  <AvatarFallback className="bg-purple-100 text-purple-600 text-[10px]">
+                    {senderInitials || 'You'}
+                  </AvatarFallback>
+                )}
               </Avatar>
               <span className="font-medium text-gray-700">
-                {(() => {
-                  const senderAccount = appUserAccountsData[0];
-                  return senderAccount ?
-                    `${senderAccount.firstName || ''} ${senderAccount.lastName || ''}`.trim() :
-                    'Your Account';
-                })()}
+                {senderFullName || 'Your Account'}
               </span>
               <BadgeCheck size={14} className="ml-1 fill-purple-600 text-white h-5 w-5" strokeWidth={2} />
             </div>
