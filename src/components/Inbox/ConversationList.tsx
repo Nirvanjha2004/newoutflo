@@ -533,7 +533,7 @@ export const ConversationList = ({
                 {/* Message preview with better visual grouping */}
                 <div className="mt-0.5  pl-0.5  border-gray-100">
                   <div className="flex items-center">
-                    <p className="text-sm text-gray-600 py-1 ml-12 font-semibold truncate pr-2 flex-grow pl-2 border-l-2 border-white">
+                    <p className="text-sm text-gray-600 py-1 ml-12 font-semibold truncate pr-2 flex-grow pl-2 border-l-2 border-gray-300">
                       {conversation.lastMessage?.text || "No messages"}
                     </p>
                     {/* {hasUnread && (
@@ -546,7 +546,7 @@ export const ConversationList = ({
                   {/* Last message sender with Via label positioned correctly */}
                   <div className="flex items-center bg-none rounded-r-lg py-1 pl-2 mt-1.5">
                     {/* Add the Via label here, before the user's avatar */}
-                    <span className="bg-indigo-50 text-indigo-700 px-1 py-0.5 rounded-sm text-[10px] font-medium mr-2">Sent By</span>
+                    <span className=" text-gray-500 px-1 py-0.5 rounded-sm text-[12px] font-medium mr-2">Sent By</span>
 
                     <div className="flex items-center bg-purple-100 rounded-full py-1 px-2 border border-purple-100">
                       <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center mr-1.5 overflow-hidden text-xs shrink-0">

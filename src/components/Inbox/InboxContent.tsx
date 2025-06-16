@@ -83,7 +83,7 @@ export const InboxContent = ({ selectedConversation, onSelectConversation, onPro
           {/* MOVED: Active Accounts Section - now positioned above search */}
           <div className="mb-4">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-xs font-medium text-gray-700">Active Accounts</h3>
+              <h3 className="text-xs font-medium text-gray-700">Connected Accounts</h3>
               <div className="flex items-center space-x-1">
                 {activeAccounts.length > 3 && (
                   <Button
@@ -97,12 +97,12 @@ export const InboxContent = ({ selectedConversation, onSelectConversation, onPro
                     ) : (
                       <ChevronDown size={14} className="mr-1" />
                     )}
-                    {showAllAccounts ? 'Less' : 'More'}
+                    {/* {showAllAccounts ? 'Less' : 'More'} */}
                   </Button>
                 )}
-                <Button variant="ghost" size="sm" className="h-5 w-5 p-0">
+                {/* <Button variant="ghost" size="sm" className="h-5 w-5 p-0">
                   <MoreHorizontal size={12} className="text-gray-400" />
-                </Button>
+                </Button> */}
               </div>
             </div>
 
