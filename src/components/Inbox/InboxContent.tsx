@@ -52,7 +52,7 @@ export const InboxContent = ({ selectedConversation, onSelectConversation, onPro
           name,
           initials,
           status: account?.status || "active",
-          profileImage: account?.profilePicture || account?.avatar
+          profileImage: account?.profileImageUrl || account?.avatar
         };
       });
   }, [accounts]);
@@ -61,6 +61,10 @@ export const InboxContent = ({ selectedConversation, onSelectConversation, onPro
   const visibleAccounts = useMemo(() => {
     return showAllAccounts ? activeAccounts : activeAccounts.slice(0, 3);
   }, [activeAccounts, showAllAccounts]);
+
+
+  console.log("Active Accounts:", activeAccounts);
+  console.log("Visible Accounts:", visibleAccounts);
 
   const toggleAccountsVisibility = () => {
     setShowAllAccounts(!showAllAccounts);
@@ -116,7 +120,7 @@ export const InboxContent = ({ selectedConversation, onSelectConversation, onPro
                 {visibleAccounts.map((account) => (
                   <div
                     key={account.id}
-                    className="flex items-center space-x-1 px-2 py-1 rounded-md hover:bg-gray-50 border border-gray-100 transition-colors"
+                    className="flex items-center space-x-1 px-2 py-1 rounded-full bg-purple-100 border border-gray-100 transition-colors"
                   >
                     <Avatar className="w-5 h-5">
                       {account.profileImage ? (
@@ -127,7 +131,7 @@ export const InboxContent = ({ selectedConversation, onSelectConversation, onPro
                         </AvatarFallback>
                       )}
                     </Avatar>
-                    <span className="text-xs text-gray-700">{account.name.split(' ')[0]}</span>
+                    <span className="text-xs font-semibold text-purple-800">{account.name.split(' ')[0]}</span>
                     <div className="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
                   </div>
                 ))}
