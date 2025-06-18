@@ -246,7 +246,7 @@ const CampaignAnalytics = ({
             
             formattedDate = DateTime.fromMillis(timeMs)
               .setZone(mappedTimezone)
-              .toFormat('HH:mm, d MMM, yyyy');
+              .toFormat('HH:mm, d MMM, yyyy (z)');
           } catch (e) {
             formattedDate = 'Invalid date';
           }
