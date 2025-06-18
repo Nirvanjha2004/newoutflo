@@ -21,12 +21,10 @@ const columnTypeOptions: { value: ColumnType; label: string; icon?: string }[] =
   { value: "first-name", label: "First Name", icon: "👤" },
   { value: "last-name", label: "Last Name", icon: "👤" },
   { value: "full-name", label: "Full Name" },
-  { value: "headline", label: "Headline" },
+  { value: "head-line", label: "Headline" },
   { value: "email", label: "Email", icon: "📧" },
   { value: "job-title", label: "Job Title", icon: "💼" },
   { value: "company-url", label: "Company URL" },
-  { value: "tags", label: "Tags" },
-  { value: "first-para", label: "First Para" }
 ];
 
 export function CSVMappingModal({ open, onClose, onBack, csvData, onUpload }: CSVMappingModalProps) {

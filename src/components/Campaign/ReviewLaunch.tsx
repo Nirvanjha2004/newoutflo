@@ -8,9 +8,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Campaign } from '@/types/campaigns';
 import { useCampaignStore } from '@/api/store/campaignStore/campaign';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { format } from 'date-fns';
 import { DateTime } from 'luxon';
+import { toast } from 'sonner';
 
 
 
@@ -413,6 +414,10 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
     setWorkingHoursState(newHours);
     updateCampaignData({ workingHours: newHours });
     setWorkingHours(newHours);
+
+    // Add this crucial line to convert all times to GMT for backend
+    const ianaZone = zoneMap[timezone] || 'Etc/UTC';
+    convertAllTimesToGMT(newHours, ianaZone);
   };
 
   const handleTimezoneChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -488,9 +493,32 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
     }
   };
 
+  // Update the handleLaunch function to validate requirements
   const handleLaunch = () => {
     if (viewMode) return; // Skip in view mode
 
+    // Check for required data
+    if (leadCount === 0) {
+      // Show error toast for missing leads
+      toast({
+        title: "Cannot Launch Campaign",
+        description: "Please add leads to your campaign before launching.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!senderAccounts || senderAccounts.length === 0) {
+      // Show error toast for missing sender accounts
+      toast({
+        title: "Cannot Launch Campaign",
+        description: "Please add at least one LinkedIn sender account before launching.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Only continue if we have leads and sender accounts and user confirmed
     if (confirmDetails && !isSubmitting) {
       // Get the IANA timezone identifier
       const ianaZone = zoneMap[timezone] || 'Etc/UTC';
@@ -1102,6 +1130,24 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
       {!viewMode && (
         <div className="bg-white border-t border-gray-200 p-6 rounded-lg shadow-sm">
           <div className="max-w-md mx-auto space-y-4">
+            {/* Display validation warnings if required data is missing */}
+            {(leadCount === 0 || !senderAccounts || senderAccounts.length === 0) && (
+              <Alert variant="destructive" className="bg-red-50 border-red-200">
+                <AlertCircle className="h-4 w-4 text-red-600" />
+                <AlertTitle className="text-red-800">Missing required information</AlertTitle>
+                <AlertDescription className="text-red-700">
+                  <ul className="list-disc pl-5 space-y-1 mt-1 text-sm">
+                    {leadCount === 0 && (
+                      <li>No leads found. Please add leads to your campaign.</li>
+                    )}
+                    {(!senderAccounts || senderAccounts.length === 0) && (
+                      <li>No sender accounts found. Please add at least one LinkedIn account.</li>
+                    )}
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            )}
+
             <div className="flex items-center space-x-2">
               <Checkbox
                 checked={confirmDetails}
@@ -1110,15 +1156,18 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
                     setConfirmDetails(!!checked);
                   }
                 }}
+                disabled={leadCount === 0 || !senderAccounts || senderAccounts.length === 0}
               />
-              <label className="text-sm text-gray-600">
+              <label className={`text-sm ${leadCount === 0 || !senderAccounts || senderAccounts.length === 0 
+                ? "text-gray-400" 
+                : "text-gray-600"}`}>
                 I confirm all details are correct and ready to launch
               </label>
             </div>
 
             <Button
               className="w-full bg-primary hover:bg-primary/90 text-white py-3 text-lg font-semibold relative"
-              disabled={!confirmDetails || isSubmitting}
+              disabled={!confirmDetails || isSubmitting || leadCount === 0 || !senderAccounts || senderAccounts.length === 0}
               onClick={handleLaunch}
             >
               {isSubmitting ? (
@@ -1126,6 +1175,8 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
                   <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                   Launching Campaign...
                 </>
+              ) : leadCount === 0 || !senderAccounts || senderAccounts.length === 0 ? (
+                "Missing Required Data"
               ) : (
                 <>🚀 Launch Campaign</>
               )}

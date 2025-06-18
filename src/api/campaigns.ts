@@ -201,7 +201,7 @@ export const postCampaign = async (campaignData: Campaign): Promise<GenericApiRe
   // Format local operational times exactly as shown in the image
   const localStartHour = campaignData.localOperationalTimes?.startTime || 9;
   const localEndHour = campaignData.localOperationalTimes?.endTime || 23;
-  const userTimezone = campaignData.timezone || "GMT";
+  const userTimezone = campaignData.timezone || "IST";
   
   formData.append("localOperationalTimes", JSON.stringify({
     startTime: localStartHour,

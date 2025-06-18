@@ -189,19 +189,64 @@ export function VerificationResultsModal({
                 : "Your leads passed all verification checks and are ready to be uploaded."}
             </p>
           </div>
+
+          {/* No LinkedIn URLs Found Message */}
+          {results.urlsVerified.valid === 0 && results.urlsVerified.invalid === 0 && (
+            <div className="bg-yellow-50 p-4 rounded-md my-4">
+                <h3 className="font-medium text-yellow-800">No LinkedIn URLs Found</h3>
+                <p className="text-sm text-yellow-700 mt-1">
+                    None of your mapped columns contain LinkedIn URLs. Please review your column mappings to ensure LinkedIn profiles can be verified.
+                </p>
+                <div className="mt-3">
+                    <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={onClose}
+                        className="bg-yellow-100 border-yellow-300 text-yellow-800 hover:bg-yellow-200"
+                    >
+                        Review Column Mappings
+                    </Button>
+                </div>
+            </div>
+          )}
+
+          {/* No Valid LinkedIn URLs Found Message */}
+          {results.urlsVerified.valid === 0 && results.urlsVerified.invalid > 0 && (
+            <div className="bg-red-50 p-4 rounded-md my-4">
+                <h3 className="font-medium text-red-800">No Valid LinkedIn URLs Found</h3>
+                <p className="text-sm text-red-700 mt-1">
+                    All {results.urlsVerified.invalid} LinkedIn URLs in your data are invalid. This often happens 
+                    when the wrong column has been mapped as LinkedIn URL.
+                </p>
+                <div className="mt-3 flex space-x-3">
+                    <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={onClose}
+                        className="bg-red-100 border-red-300 text-red-800 hover:bg-red-200"
+                    >
+                        Review Column Mappings
+                    </Button>
+                </div>
+            </div>
+          )}
         </div>
         
         <DialogFooter className="sm:justify-between border-t border-gray-100 pt-4">
-          {/* Remove Edit Data button and replace with summary text */}
           <div className="text-sm text-gray-600">
-            {results.urlsVerified.valid} valid leads will be uploaded
+            {results.urlsVerified.valid > 0 ? 
+              `${results.urlsVerified.valid} valid leads will be uploaded` : 
+              "No valid leads to upload"}
           </div>
+          
           <Button
             onClick={onContinue}
-            disabled={!continueEnabled} // Use the prop here
-            className={!continueEnabled ? "opacity-50 cursor-not-allowed" : ""}
+            disabled={!continueEnabled || results.urlsVerified.valid === 0}
+            className={(!continueEnabled || results.urlsVerified.valid === 0) ? "opacity-50 cursor-not-allowed" : ""}
           >
-            Continue with Valid Leads
+            {results.urlsVerified.valid > 0 
+              ? `Continue with ${results.urlsVerified.valid} Valid Leads` 
+              : "No Valid Leads to Upload"}
           </Button>
         </DialogFooter>
       </DialogContent>

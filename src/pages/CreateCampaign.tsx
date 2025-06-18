@@ -182,6 +182,9 @@ const CreateCampaignContent = () => {
     );
   };
 
+  // Add this state to track mapping state
+  const [isColumnMappingActive, setIsColumnMappingActive] = useState(false);
+
   const renderStepContent = () => {
     if (isLoading) {
       return (
@@ -221,6 +224,7 @@ const CreateCampaignContent = () => {
           leadData={campaignData.leads}
           updateLeads={(leads) => updateCampaignData({ leads })}
           viewMode={isViewMode}
+          onMappingStateChange={setIsColumnMappingActive} // Add this prop
         />;
       case 3:
         return <Sequence
@@ -287,7 +291,7 @@ const CreateCampaignContent = () => {
           </div>
 
           {!isViewMode && (
-            currentStep < 4 ? (
+            currentStep < 4 && !isColumnMappingActive ? (
               <Button
                 onClick={handleContinue}
                 className="bg-primary hover:bg-primary/90 text-white"

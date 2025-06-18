@@ -379,7 +379,7 @@ export const getMappingSuggestions = async (req: Request, res: Response) => {
           let mappedType = 'do-not-import';
 
           // Detect common column names
-          if (headerLower.includes('company url')) {
+          if (headerLower.includes('company url') || headerLower.includes('companyurl')) {
             mappedType = 'company-url'; // Or skip mapping if you don't need it
           } else if (
             (headerLower.includes('linkedin') ||

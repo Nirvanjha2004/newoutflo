@@ -220,80 +220,18 @@ const CampaignAnalytics = ({
     return 'processing';
   };
 
-  // Sample data fallback function - MOVED UP HERE to fix the error
-  const getSampleLeads = (): Lead[] => {
-    return [
-      {
-        id: 1,
-        name: 'Aryan',
-        status: 'connectionSent',
-        lastActivity: '08:02 GMT, 9 June, 2025',
-        assignedAccount: 'Siddhi Kirtania'
-      },
-      {
-        id: 2,
-        name: 'Ammar',
-        status: 'processing',
-        lastActivity: '08:33 GMT, 9 June, 2025',
-        assignedAccount: 'Twinkle Janagal'
-      },
-      {
-        id: 3,
-        name: 'Aakash',
-        status: 'connectionSent',
-        lastActivity: '08:02 GMT, 9 June, 2025',
-        assignedAccount: 'Aryan Sharma'
-      },
-      {
-        id: 4,
-        name: 'Vijay',
-        status: 'success',
-        lastActivity: '08:50 GMT, 10 June, 2025',
-        assignedAccount: 'Mitesh Bhardwaj'
-      },
-      {
-        id: 5,
-        name: 'pushkar',
-        status: 'failed',
-        lastActivity: '08:03 GMT, 9 June, 2025',
-        assignedAccount: 'Srividhya Chandrasekar'
-      },
-      {
-        id: 6,
-        name: 'Praveen',
-        status: 'success',
-        lastActivity: '11:49 GMT, 10 June, 2025',
-        assignedAccount: 'Siddhi Kirtania'
-      },
-      {
-        id: 7,
-        name: 'Rahul',
-        status: 'processing',
-        lastActivity: '14:20 GMT, 10 June, 2025',
-        assignedAccount: 'Twinkle Janagal'
-      },
-      {
-        id: 8,
-        name: 'Priya',
-        status: 'failed',
-        lastActivity: '16:45 GMT, 10 June, 2025',
-        assignedAccount: 'Aryan Sharma'
-      }
-    ];
-  };
-
-  // Map backend leads to frontend format - WITHOUT FIELD MAPPINGS
+  // Map backend leads to frontend format
   const allLeads = useMemo(() => {
     console.log("The leadData is", leadData);
 
-    // Return sample data if no real data exists
-    if (!leadData || (Array.isArray(leadData) && leadData.length === 0)) {
-      return getSampleLeads();
+    // If leadData is not provided, not an array, or is empty, return an empty array.
+    if (!leadData || !Array.isArray(leadData) || leadData.length === 0) {
+      // setShowDataWarning(true); // Optionally set a warning if it's unexpected for leadData to be empty
+      return [];
     }
 
     try {
-      // Backend data is already an array - no need to check for leadData.data
-      const mappedLeads = Array.isArray(leadData) ? leadData : [];
+      const mappedLeads = leadData; // Already an array from props
       console.log("Mapped Leads:", mappedLeads);
 
       return mappedLeads.map((lead: BackendLead, index: number) => {
@@ -304,7 +242,6 @@ const CampaignAnalytics = ({
           try {
             const timeMs = timestamp < 10000000000 ? timestamp * 1000 : timestamp;
             
-            // Get mapped timezone code from zoneMap if available, otherwise use userTimezone directly
             const mappedTimezone = zoneMap[userTimezone] || userTimezone;
             
             formattedDate = DateTime.fromMillis(timeMs)
@@ -315,19 +252,16 @@ const CampaignAnalytics = ({
           }
         }
 
-        // Keep status mapping since this is explicitly not included in removal request
         let mappedStatus = mapLeadStatus(lead.status);
-
-        // Get the real account name instead of just the ID
         const accountName = getAccountName(lead.accountId);
 
         return {
-          id: index,
-          name: lead.firstName || '',
+          id: lead.urn || `lead-${index}`, // Use URN if available for a more stable key
+          name: `${lead.firstName || ''} ${lead.lastName || ''}`.trim() || lead.url || 'Unnamed Lead',
           status: mappedStatus,
           lastActivity: formattedDate,
           assignedAccount: accountName,
-          accountId: lead.accountId, // Keep the original accountId for filtering
+          accountId: lead.accountId,
           url: lead.url,
           rawStatus: lead.status
         };
@@ -335,9 +269,9 @@ const CampaignAnalytics = ({
     } catch (error) {
       console.error("Error processing lead data:", error);
       setShowDataWarning(true);
-      return getSampleLeads();
+      return []; // Return empty array on error
     }
-  }, [leadData, accountNameMap, userTimezone]); // Add userTimezone dependency
+  }, [leadData, accountNameMap, userTimezone, getAccountName, mapLeadStatus]); // Added mapLeadStatus and getAccountName to dependencies
 
   // Analytics data calculated from actual leads
   const analytics = useMemo(() => [
@@ -369,7 +303,7 @@ const CampaignAnalytics = ({
       bgColor: 'bg-orange-50',
       iconColor: 'text-orange-500'
     }
-  ], [allLeads]);
+  ], [campaignInsights]); // Removed allLeads dependency if insights are passed directly
 
   // Get unique assigned accounts for dropdown with real names
   const assignedAccounts = useMemo(() => {
@@ -926,7 +860,7 @@ const CampaignAnalytics = ({
                 {filteredLeads.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={viewMode ? 4 : 5} className="text-center py-8 text-gray-500">
-                      No leads found matching your filters
+                      {allLeads.length === 0 ? "No Valid leads found in your CSV file" : "No leads found matching your filters"}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -936,14 +870,18 @@ const CampaignAnalytics = ({
 
                     return (
                       <TableRow
-                        key={lead.id}
+                        key={lead.id} // Ensure lead.id is unique and stable
                         className={`hover:bg-gray-50 transition-colors border-b border-gray-100 ${isHighlighted ? 'bg-blue-50/30' : ''
                           }`}
                       >
                         <TableCell className="py-3 px-4">
-                          {/* Show only the name or shortened URL */}
-                          <a href={lead.url} target="_blank" rel="noopener noreferrer" className="text-gray-900 hover:underline font-medium">
-                            {lead.name || shortenLinkedInUrl(lead.url)}
+                          <a 
+                            href={lead.url || '#'} 
+                            target={lead.url ? "_blank" : "_self"} 
+                            rel="noopener noreferrer" 
+                            className={`text-gray-900 font-medium ${lead.url ? 'hover:underline' : 'cursor-default'}`}
+                          >
+                            {lead.name || shortenLinkedInUrl(lead.url) || 'N/A'}
                           </a>
                         </TableCell>
                         <TableCell className="py-3 px-4">
