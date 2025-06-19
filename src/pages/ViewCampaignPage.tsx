@@ -875,7 +875,7 @@ const CampaignAnalyticsCards = ({
         },
         {
             title: 'Requests Accepted',
-            value: campaignInsights?.connectionsAccepted || 0,
+            value: campaignInsights?.connectionRequestsAccepted || 0,
             icon: CheckCircle,
             bgColor: 'bg-green-50',
             iconColor: 'text-green-500',
@@ -891,7 +891,7 @@ const CampaignAnalyticsCards = ({
         },
         {
             title: 'Responses',
-            value: campaignInsights?.messagesReceived || 0,
+            value: campaignInsights?.responses || 0,
             icon: MessageCircle,
             bgColor: 'bg-orange-50',
             iconColor: 'text-orange-500',

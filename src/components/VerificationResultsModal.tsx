@@ -37,13 +37,15 @@ export function VerificationResultsModal({
   continueEnabled = false // Default to disabled 
 }: VerificationResultsModalProps) {
   // Calculate percentages for visual indicators
-  const validUrlsPercentage = totalRows > 0 ? 
+  const validUrlsPercentage = totalRows > 0 ?
     Math.round((results.urlsVerified.valid / totalRows) * 100) : 0;
-  
+
   // Calculate if there are any severe issues
-  const hasSevereIssues = results.urlsVerified.invalid > 0 || 
+  const hasSevereIssues = results.urlsVerified.invalid > 0 ||
     Object.keys(results.columnCompleteness).length > 0;
 
+
+  console.log("Verification Results:", results);
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
@@ -53,7 +55,7 @@ export function VerificationResultsModal({
             Lead Verification Results
           </DialogTitle>
         </DialogHeader>
-        
+
         <div className="py-4 space-y-6">
           {/* Summary Stats */}
           <div className="grid grid-cols-3 gap-4 mb-6">
@@ -70,25 +72,25 @@ export function VerificationResultsModal({
               <div className="text-2xl font-semibold mt-1">{results.urlsVerified.invalid}</div>
             </div>
           </div>
-          
+
           {/* LinkedIn URL Verification */}
           <div className="border border-gray-200 rounded-lg p-5">
             <h3 className="text-lg font-medium text-gray-900 mb-4">LinkedIn URL Verification</h3>
-            
+
             <div className="h-2 w-full bg-gray-100 rounded-full mb-2">
-              <div 
-                className="h-2 bg-green-500 rounded-full" 
+              <div
+                className="h-2 bg-green-500 rounded-full"
                 style={{ width: `${validUrlsPercentage}%` }}
               />
             </div>
-            
+
             <div className="flex justify-between text-sm mb-4">
               <span className="text-gray-600">{validUrlsPercentage}% Valid URLs</span>
               <span className="text-gray-600">
                 {results.urlsVerified.valid} of {totalRows} leads
               </span>
             </div>
-            
+
             {results.urlsVerified.invalidUrls.length > 0 && (
               <div>
                 <h4 className="text-sm font-medium text-red-600 mb-2 flex items-center">
@@ -111,7 +113,7 @@ export function VerificationResultsModal({
               </div>
             )}
           </div>
-          
+
           {/* Custom Variables Check */}
           {/* <div className="border border-gray-200 rounded-lg p-5">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Custom Variables</h3>
@@ -135,11 +137,11 @@ export function VerificationResultsModal({
               </div>
             </div>
           </div> */}
-          
+
           {/* Data Completeness */}
           <div className="border border-gray-200 rounded-lg p-5">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Data Completeness</h3>
-            
+
             {Object.keys(results.columnCompleteness).length > 0 ? (
               <div className="space-y-3">
                 {Object.entries(results.columnCompleteness).map(([colName, result]) => (
@@ -167,7 +169,7 @@ export function VerificationResultsModal({
               </div>
             )}
           </div>
-          
+
           {/* Final Assessment */}
           <div className={`${hasSevereIssues ? 'bg-yellow-50 text-yellow-800 border-yellow-200' : 'bg-green-50 text-green-800 border-green-200'} border rounded-lg p-4`}>
             <h3 className="font-medium flex items-center">
@@ -184,7 +186,7 @@ export function VerificationResultsModal({
               )}
             </h3>
             <p className="mt-1 text-sm">
-              {hasSevereIssues 
+              {hasSevereIssues
                 ? "Some of your leads have issues that may affect campaign performance. You can continue with the upload or go back to fix the data first."
                 : "Your leads passed all verification checks and are ready to be uploaded."}
             </p>
@@ -193,59 +195,59 @@ export function VerificationResultsModal({
           {/* No LinkedIn URLs Found Message */}
           {results.urlsVerified.valid === 0 && results.urlsVerified.invalid === 0 && (
             <div className="bg-yellow-50 p-4 rounded-md my-4">
-                <h3 className="font-medium text-yellow-800">No LinkedIn URLs Found</h3>
-                <p className="text-sm text-yellow-700 mt-1">
-                    None of your mapped columns contain LinkedIn URLs. Please review your column mappings to ensure LinkedIn profiles can be verified.
-                </p>
-                <div className="mt-3">
-                    <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={onClose}
-                        className="bg-yellow-100 border-yellow-300 text-yellow-800 hover:bg-yellow-200"
-                    >
-                        Review Column Mappings
-                    </Button>
-                </div>
+              <h3 className="font-medium text-yellow-800">No LinkedIn URLs Found</h3>
+              <p className="text-sm text-yellow-700 mt-1">
+                None of your mapped columns contain LinkedIn URLs. Please review your column mappings to ensure LinkedIn profiles can be verified.
+              </p>
+              <div className="mt-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onClose}
+                  className="bg-yellow-100 border-yellow-300 text-yellow-800 hover:bg-yellow-200"
+                >
+                  Review Column Mappings
+                </Button>
+              </div>
             </div>
           )}
 
           {/* No Valid LinkedIn URLs Found Message */}
           {results.urlsVerified.valid === 0 && results.urlsVerified.invalid > 0 && (
             <div className="bg-red-50 p-4 rounded-md my-4">
-                <h3 className="font-medium text-red-800">No Valid LinkedIn URLs Found</h3>
-                <p className="text-sm text-red-700 mt-1">
-                    All {results.urlsVerified.invalid} LinkedIn URLs in your data are invalid. This often happens 
-                    when the wrong column has been mapped as LinkedIn URL.
-                </p>
-                <div className="mt-3 flex space-x-3">
-                    <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={onClose}
-                        className="bg-red-100 border-red-300 text-red-800 hover:bg-red-200"
-                    >
-                        Review Column Mappings
-                    </Button>
-                </div>
+              <h3 className="font-medium text-red-800">No Valid LinkedIn URLs Found</h3>
+              <p className="text-sm text-red-700 mt-1">
+                All {results.urlsVerified.invalid} LinkedIn URLs in your data are invalid. This often happens
+                when the wrong column has been mapped as LinkedIn URL.
+              </p>
+              <div className="mt-3 flex space-x-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onClose}
+                  className="bg-red-100 border-red-300 text-red-800 hover:bg-red-200"
+                >
+                  Review Column Mappings
+                </Button>
+              </div>
             </div>
           )}
         </div>
-        
+
         <DialogFooter className="sm:justify-between border-t border-gray-100 pt-4">
           <div className="text-sm text-gray-600">
-            {results.urlsVerified.valid > 0 ? 
-              `${results.urlsVerified.valid} valid leads will be uploaded` : 
+            {results.urlsVerified.valid > 0 ?
+              `${results.urlsVerified.valid} valid leads will be uploaded` :
               "No valid leads to upload"}
           </div>
-          
+
           <Button
             onClick={onContinue}
             disabled={!continueEnabled || results.urlsVerified.valid === 0}
             className={(!continueEnabled || results.urlsVerified.valid === 0) ? "opacity-50 cursor-not-allowed" : ""}
           >
-            {results.urlsVerified.valid > 0 
-              ? `Continue with ${results.urlsVerified.valid} Valid Leads` 
+            {results.urlsVerified.valid > 0
+              ? `Continue with ${results.urlsVerified.valid} Valid Leads`
               : "No Valid Leads to Upload"}
           </Button>
         </DialogFooter>
