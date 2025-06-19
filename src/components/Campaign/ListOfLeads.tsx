@@ -95,7 +95,7 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
         verifyLeads: true
     });
 
-    
+
     // Add this state variable near your other state declarations
     const [uploadInitiated, setUploadInitiated] = useState(false);
     // Add this state variable near your other state declarations
@@ -114,7 +114,7 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
     // Optimized verifyLeadData function
     const verifyLeadData = async () => {
         console.log("Starting lead verification process");
-        
+
         // Validate that we have data to work with
         if (!parsedCsvData || parsedCsvData.length === 0) {
             console.error("No CSV data available for verification");
@@ -145,7 +145,7 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
         }
 
         const totalRows = parsedCsvData.length;
-        
+
         // URL verification results object
         const urlVerificationResults = {
             valid: 0,
@@ -156,10 +156,10 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
         // Verify each URL in the dataset
         parsedCsvData.forEach((row, rowIndex) => {
             let rowValid = false;
-            
+
             urlColumns.forEach(colName => {
                 const url = row[colName];
-                
+
                 // Skip empty URLs
                 if (!url || url.trim() === '') {
                     return;
@@ -172,8 +172,8 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
                 }
 
                 // Use the validation library
-                const isValid = isValidLinkedInProfileUrl(normalizedUrl) || 
-                              isValidCompanyLinkedInProfileUrl(normalizedUrl);
+                const isValid = isValidLinkedInProfileUrl(normalizedUrl) ||
+                    isValidCompanyLinkedInProfileUrl(normalizedUrl);
 
                 if (isValid) {
                     urlVerificationResults.valid++;
@@ -187,7 +187,7 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
                 }
             });
         });
-        
+
 
         // Also check other fields for completeness
         const completenessResults: Record<string, {
@@ -199,7 +199,7 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
         const importantFields = columnMappings.filter(
             col => ['first-name', 'last-name', 'email'].includes(col.type)
         );
-        
+
         importantFields.forEach(col => {
             const missingRows: number[] = [];
             let missingCount = 0;
@@ -350,11 +350,13 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
         value: 'linkedin-url',
         label: '🔗 LinkedIn URL',
         icon: '🔗'
-    }, {
-        value: 'company-url',
-        label: '🔗 Company URL',
-        icon: '🔗'
-    }, {
+    },
+    // {
+    //     value: 'company-url',
+    //     label: '🔗 Company URL',
+    //     icon: '🔗'
+    // }, 
+    {
         value: 'head-line',
         label: '📝 Headline',
         icon: '📝'
@@ -370,10 +372,6 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
         value: 'company',
         label: '🏢 Company',
         icon: '🏢'
-    }, {
-        value: 'email',
-        label: '✉️ Email',
-        icon: '✉️'
     }, {
         value: 'custom-variable',
         label: '⚙️ Custom Variable',
@@ -411,7 +409,7 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
                 complete: (results) => {
                     const parsedData = results.data as any[];
                     setParsedCsvData(parsedData);
-                    
+
                     if (results.meta.fields && results.meta.fields.length > 0) {
                         // Map the columns using the client-side logic
                         const newColumnMappings: ColumnMapping[] = results.meta.fields.map(header => {
@@ -449,7 +447,7 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
                             } else if (headerLower.includes('company') && (headerLower.includes('url')) && (!headerLower.includes('linkedin'))) {
                                 type = 'company-url';
                             }
-                            
+
                             // Get sample data for display
                             const samples = parsedData.slice(0, 4).map(row => row[header] || '').filter(Boolean);
 
@@ -758,7 +756,7 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
                 description: `Removed ${invalidRowIndexes.size} leads with invalid LinkedIn URLs. Continuing with ${filteredData.length} valid leads.`,
             });
 
-            
+
         } catch (error) {
             console.error('Error filtering invalid URLs:', error);
             toast({
@@ -770,12 +768,12 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
     };
 
     // Add effect to run after state update
-            useEffect(() => {
-                if (filteringComplete) {
-                    handleUploadAll();
-                    setFilteringComplete(false);
-                }
-            }, [filteringComplete]);
+    useEffect(() => {
+        if (filteringComplete) {
+            handleUploadAll();
+            setFilteringComplete(false);
+        }
+    }, [filteringComplete]);
 
     // Process the data according to column mappings and update the store
     const handleUploadAll = async () => {
@@ -899,11 +897,11 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
                 // If there's no LinkedIn URL, keep the lead
                 if (!item.linkedinUrl) return true;
 
-                console.log(`Validating LinkedIn URL: ${item.linkedinUrl} , the validation result is: `,isValidLinkedInProfileUrl(item.linkedinUrl) || 
-                       isValidCompanyLinkedInProfileUrl(item.linkedinUrl));
+                console.log(`Validating LinkedIn URL: ${item.linkedinUrl} , the validation result is: `, isValidLinkedInProfileUrl(item.linkedinUrl) ||
+                    isValidCompanyLinkedInProfileUrl(item.linkedinUrl));
                 // Use the library to validate the LinkedIn URL
-                return isValidLinkedInProfileUrl(item.linkedinUrl) || 
-                       isValidCompanyLinkedInProfileUrl(item.linkedinUrl);
+                return isValidLinkedInProfileUrl(item.linkedinUrl) ||
+                    isValidCompanyLinkedInProfileUrl(item.linkedinUrl);
             });
 
             console.log(`Filtered ${originalCount - filteredProcessedData.length} leads with invalid LinkedIn URLs`);
@@ -1185,18 +1183,27 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
     // Download sample CSV template
     const handleDownloadSample = () => {
         const sampleData = [
-            { firstName: 'Joseph', lastName: 'Hoban', linkedinUrl: 'https://www.linkedin.com/in/joseph-hoban-6522a4', email: 'joseph@redseal.com', company: 'RedSeal, Inc.', position: 'Advisor to Chief Executive Officer', location: 'Philadelphia, Pennsylvania', industry: 'cybersecurity' },
-            { firstName: 'Martin', lastName: 'Denard', linkedinUrl: 'https://www.linkedin.com/in/ACoAAA4I7-0BpD0uL_CiYVrSd2iX0fEDzP7Pvi0', email: 'martin@tenica.com', company: 'TENICA Global Solutions', position: 'Assistant Project Manager', location: 'Washington DC-Baltimore Area', industry: 'IT infrastructure' },
-            { firstName: 'David', lastName: 'Denick', linkedinUrl: 'https://www.linkedin.com/in/david-denick-5aa633b2', email: 'david@accessnewswire.com', company: 'ACCESS Newswire', position: 'Client Success Manager', location: 'Winter Garden, Florida', industry: 'communications' },
-            { firstName: 'Al', lastName: 'Coronado', linkedinUrl: 'https://www.linkedin.com/in/al-coronado-3708b94', email: 'al@athena.com', company: 'ATHENA Consulting', position: 'Channel Partner', location: 'Irvine, California', industry: 'consulting services' },
-            { firstName: 'Matt', lastName: 'Hudson', linkedinUrl: 'https://www.linkedin.com/in/matthudson1076', email: 'matt@layr.com', company: 'Layr', position: 'Senior Director of Sales', location: 'Austin, Texas', industry: 'team development' },
-            { firstName: 'John', lastName: 'Peternel', linkedinUrl: 'https://www.linkedin.com/in/ACwAAAE7IzcBOr5VAisTaURubVdFvu1TwVMpRGQ', email: 'john@creativesecurity.com', company: 'Creative Security Company', position: 'Sales Manager', location: 'Union City, California', industry: 'security solutions' },
-            { firstName: 'Teddy', lastName: 'Gorman', linkedinUrl: 'https://www.linkedin.com/in/teddygorman', email: 'teddy@aircontrol.com', company: 'AIR Control Concepts', position: 'Aftermarket Parts Regional Manager', location: 'Memphis Metropolitan Area', industry: 'aftermarket parts' },
-            { firstName: 'Rolf', lastName: 'Herrmann', linkedinUrl: 'https://www.linkedin.com/in/ACwAAAKRGs8BU0NZdJgGDtDdH-R6NCEc9YJEKoE', email: 'rolf@schneeberger.com', company: 'J. Schneeberger Corp.', position: 'General Manager', location: 'Elgin, Illinois', industry: 'industrial machinery' },
-            { firstName: 'Salim', lastName: 'Fedel', linkedinUrl: 'https://www.linkedin.com/in/salim-fedel-5652b21', email: 'salim@algeriaventure.com', company: 'Algeria Venture', position: 'Advisor to Startups', location: 'Palo Alto, California', industry: 'renewable energy' },
-            { firstName: 'Jaimine', lastName: 'Johnson', linkedinUrl: 'https://www.linkedin.com/in/jaimineljohnson', email: 'jaimine@equity.com', company: 'Equity Commercial Real Estate Solutions', position: 'Managing Director, Brokerage', location: 'Columbus, Ohio', industry: 'commercial real estate' }
+            { firstName: 'Joseph', lastName: 'Hoban', linkedinUrl: 'https://www.linkedin.com/in/joseph-hoban-6522a4', email: 'joseph@redseal.com', company: 'RedSeal, Inc.', position: 'Advisor to Chief Executive Officer', location: 'Philadelphia, Pennsylvania, United States', industry: 'cybersecurity', keyStrength: 'cybersecurity sales leadership', experience: '15+ years' },
+            { firstName: 'Martin', lastName: 'Denard', linkedinUrl: 'https://www.linkedin.com/in/ACoAAA4I7-0BpD0uL_CiYVrSd2iX0fEDzP7Pvi0', email: 'martin@tenica.com', company: 'TENICA Global Solutions', position: 'Assistant Project Manager', location: 'Washington DC-Baltimore Area', industry: 'IT infrastructure', keyStrength: 'incident response expertise', experience: '2+ years' },
+            { firstName: 'David', lastName: 'Denick', linkedinUrl: 'https://www.linkedin.com/in/david-denick-5aa633b2', email: 'david@accessnewswire.com', company: 'ACCESS Newswire', position: 'Client Success Manager', location: 'Winter Garden, Florida, United States', industry: 'communications', keyStrength: 'relationship-driven results', experience: '10+ years' },
+            { firstName: 'Al', lastName: 'Coronado', linkedinUrl: 'https://www.linkedin.com/in/al-coronado-3708b94', email: 'al@athena.com', company: 'ATHENA Consulting', position: 'Channel Partner', location: 'Irvine, California, United States', industry: 'consulting services', keyStrength: 'consultative selling approach', experience: '12+ years' },
+            { firstName: 'Matt', lastName: 'Hudson', linkedinUrl: 'https://www.linkedin.com/in/matthudson1076', email: 'matt@layr.com', company: 'Layr', position: 'Senior Director of Sales', location: 'Austin, Texas Metropolitan Area', industry: 'team development', keyStrength: 'team culture building', experience: '8+ years' },
+            { firstName: 'John', lastName: 'Peternel', linkedinUrl: 'https://www.linkedin.com/in/ACwAAAE7IzcBOr5VAisTaURubVdFvu1TwVMpRGQ', email: 'john@creativesecurity.com', company: 'Creative Security Company', position: 'Sales Manager', location: 'Union City, California, United States', industry: 'security solutions', keyStrength: 'diverse industry experience', experience: '25+ years' },
+            { firstName: 'Teddy', lastName: 'Gorman', linkedinUrl: 'https://www.linkedin.com/in/teddygorman', email: 'teddy@aircontrol.com', company: 'AIR Control Concepts', position: 'Aftermarket Parts Regional Manager', location: 'Memphis Metropolitan Area', industry: 'aftermarket parts', keyStrength: 'performance-driven leadership', experience: '25+ years' },
+            { firstName: 'Rolf', lastName: 'Herrmann', linkedinUrl: 'https://www.linkedin.com/in/ACwAAAKRGs8BU0NZdJgGDtDdH-R6NCEc9YJEKoE', email: 'rolf@schneeberger.com', company: 'J. Schneeberger Corp.', position: 'General Manager', location: 'Elgin, Illinois, United States', industry: 'industrial machinery', keyStrength: 'international machinery distribution', experience: '15+ years' },
+            { firstName: 'Salim', lastName: 'Fedel', linkedinUrl: 'https://www.linkedin.com/in/salim-fedel-5652b21', email: 'salim@algeriaventure.com', company: 'Algeria Venture', position: 'Advisor to Startups', location: 'Palo Alto, California, United States', industry: 'renewable energy', keyStrength: 'renewable technology innovation', experience: '20+ years' },
+            { firstName: 'Jaimine', lastName: 'Johnson', linkedinUrl: 'https://www.linkedin.com/in/jaimineljohnson', email: 'jaimine@equity.com', company: 'Equity Commercial Real Estate Solutions', position: 'Managing Director, Brokerage', location: 'Columbus, Ohio Metropolitan Area', industry: 'commercial real estate', keyStrength: 'healthcare real estate expertise', experience: '20+ years' },
+            { firstName: 'John', lastName: 'Tremble', linkedinUrl: 'https://www.linkedin.com/in/ACoAAAJHxlwBVm1ydZ84-Q3r1idypHJEh7asskQ', email: 'john@windowdoorware.com', company: 'Window & Door Ware', position: 'President and Senior Sales Representative', location: 'Coeur d\'Alene, Idaho, United States', industry: 'building materials', keyStrength: 'energy-efficient building solutions', experience: '15+ years' },
+            { firstName: 'Tony', lastName: 'Colalillo', linkedinUrl: 'https://www.linkedin.com/in/tony-colalillo', email: 'tony@sensapure.com', company: 'Sensapure Flavors', position: 'Senior Vice President of Sales & Marketing', location: 'South Jordan, Utah, United States', industry: 'specialty chemicals', keyStrength: 'specialty chemical market knowledge', experience: '26+ years' },
+            { firstName: 'David', lastName: 'Champmartin', linkedinUrl: 'https://www.linkedin.com/in/ACoAACgHK0UBpvVhUi2dTCW84ofMns8urCGJB3k', email: 'david@eraconsulting.com', company: 'Era Consulting Group', position: 'US. Sales Development Manager', location: 'Austin, Texas, United States', industry: 'digital transformation', keyStrength: 'digital transformation consulting', experience: '25+ years' },
+            { firstName: 'Wayne', lastName: 'Schoeneberg', linkedinUrl: 'https://www.linkedin.com/in/wayne-schoeneberg-6b069818', email: 'wayne@lg.com', company: 'LG Electronics HVAC Solutions', position: 'Senior Regional Sales Manager', location: 'San Diego County, California, United States', industry: 'HVAC solutions', keyStrength: 'strategic partnership development', experience: '15+ years' },
+            { firstName: 'Dustin', lastName: 'Suntheimer', linkedinUrl: 'https://www.linkedin.com/in/ACoAAAIj8IYBqhgSWaAfHXNXq6_izq1ibN6bT-E', email: 'dustin@gopath.com', company: 'GoPath Diagnostics', position: 'Director of Commercial Operations', location: 'Detroit Metropolitan Area', industry: 'diagnostics', keyStrength: 'diagnostic services expansion', experience: '3+ years' },
+            { firstName: 'Alicia', lastName: 'Stein González', linkedinUrl: 'https://www.linkedin.com/in/ACoAADE2uNIBiD0vz72Ut-aBV7CAHFrpYI1qp1g', email: 'alicia@wobi.com', company: 'WOBI', position: 'Sales Manager', location: 'Greater Madrid Metropolitan Area', industry: 'international business', keyStrength: 'international market development', experience: '5+ years' },
+            { firstName: 'Lorenzo', lastName: 'D\'Avolio', linkedinUrl: 'https://www.linkedin.com/in/lorenzodavolio', email: 'lorenzo@trik.com', company: 'TRI-K Industries', position: 'Sales Account Manager West Coast', location: 'United States', industry: 'personal care', keyStrength: 'personal care industry innovation', experience: '20+ years' },
+            { firstName: 'Jim', lastName: 'Kaldem', linkedinUrl: 'https://www.linkedin.com/in/jim-kaldem-1108991', email: 'jim@nelsonmiller.com', company: 'Nelson-Miller, Inc.', position: 'President', location: 'Fullerton, California, United States', industry: 'manufacturing', keyStrength: 'lean implementation expertise', experience: '10+ years' },
+            { firstName: 'Ryllee', lastName: 'Tettleton', linkedinUrl: 'https://www.linkedin.com/in/rylleetettleton', email: 'ryllee@petrosmith.com', company: 'Petrosmith', position: 'Executive Vice President of Sales & Business Development', location: 'Tomball, Texas, United States', industry: 'energy services', keyStrength: 'strategic client relationship building', experience: '12+ years' },
+            { firstName: 'Rick', lastName: 'Martin', linkedinUrl: 'https://www.linkedin.com/in/ACoAAABkk9wBVRvmm9SSBBr0WO1kg8Eo3zDJBo0', email: 'rick@rzero.com', company: 'R-Zero', position: 'Senior Sales Director', location: 'Nolensville, Tennessee, United States', industry: 'building technology', keyStrength: 'sensor technology integration', experience: '10+ years' }
         ];
-
         const csv = Papa.unparse(sampleData);
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
