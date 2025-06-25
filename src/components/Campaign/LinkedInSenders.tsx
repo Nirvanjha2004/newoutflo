@@ -16,6 +16,8 @@ import { getAccounts } from '@/api/accounts';
 import { useCampaignStore } from '@/api/store/campaignStore/campaign';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+// Import the LinkedIn Connection Modal
+import LinkedInConnectionModal from '@/components/LinkedinConnectionModal';
 
 // Add this utility function for random profile images
 const getRandomProfileImage = () => {
@@ -33,6 +35,9 @@ interface LinkedInSendersProps {
 }
 
 const LinkedInSenders: React.FC<LinkedInSendersProps> = ({ selectedAccounts, updateAccounts, viewMode = false }) => {
+  // Add state for the LinkedIn connection modal
+  const [isConnectionModalOpen, setIsConnectionModalOpen] = useState(false);
+  
   // Use campaign store
   const { setSenderAccounts } = useCampaignStore();
   
@@ -189,7 +194,11 @@ const LinkedInSenders: React.FC<LinkedInSendersProps> = ({ selectedAccounts, upd
         <div className="p-8 text-center">
           <p className="text-gray-600">No LinkedIn accounts available.</p>
           {!viewMode && (
-            <Button variant="outline" className="mt-4">
+            <Button 
+              variant="outline" 
+              className="mt-4"
+              onClick={() => setIsConnectionModalOpen(true)} // Open the modal when button is clicked
+            >
               Connect LinkedIn Account
             </Button>
           )}
@@ -312,6 +321,12 @@ const LinkedInSenders: React.FC<LinkedInSendersProps> = ({ selectedAccounts, upd
           )}
         </div>
       )}
+
+      {/* Add LinkedIn Connection Modal */}
+      <LinkedInConnectionModal 
+        isOpen={isConnectionModalOpen}
+        onClose={() => setIsConnectionModalOpen(false)}
+      />
     </div>
   );
 };
