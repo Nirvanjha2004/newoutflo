@@ -106,7 +106,7 @@ const transformCampaignForReview = (campaign: any, insights: any) => {
     };
 
     // Get the user's timezone
-    const userTimezone = campaign.localOperationalTimes?.timezone || "Target's Timezone (Recommended)";
+    const userTimezone = campaign?.timezone || "Asia/Kolkata";
     
     // Convert operational times to working hours format with timezone conversion
     let workingHours = defaultWorkingHours;

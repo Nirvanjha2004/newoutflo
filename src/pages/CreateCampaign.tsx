@@ -11,7 +11,6 @@ import { usePostCampaign } from '@/hooks/useCampaignMutations';
 import { Campaign, CampaignState } from '@/types/campaigns';
 import { useNavigate, useParams } from 'react-router-dom';
 import DashboardLayout from '@/components/DashboardLayout';
-import { useQuery } from '@/common/api';
 import { getCampaignById } from '@/api/campaigns';
 import { useCampaignStore } from '@/api/store/campaignStore';
 
@@ -33,6 +32,7 @@ const CreateCampaignContent = () => {
     state: CampaignState.STOPPED,
     senderAccounts: [],
     accountIDs: [],
+    timeZone: 'IST',
   });
 
   const campaignStore = useCampaignStore();
@@ -53,7 +53,8 @@ const CreateCampaignContent = () => {
           name: '',
           description: '',
           state: CampaignState.STOPPED,
-          leadListId: undefined
+          leadListId: undefined,
+          timeZone: 'IST',
         }
       });
     }
@@ -155,6 +156,7 @@ const CreateCampaignContent = () => {
       accountIDs: campaignData.senderAccounts?.map(account => account.id) || [],
       leadListId: leadListId || campaignData.leadListId || null,
       operationalTimes: operationalTimes , // Add operational times from store
+      timeZone: campaignData.timeZone  // Default timezone
     };
 
     console.log("Submitting campaign data with operationalTimes:", updatedCampaignData);

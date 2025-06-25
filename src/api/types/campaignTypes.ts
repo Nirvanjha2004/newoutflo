@@ -23,6 +23,7 @@ export interface UpdateCampaignRequest {
   description: string;
   status: CampaignState | string;
   accountIDs?: string[];
+  timeZone?: string;
   operationalTimes?: {
     [key: string]: DayOperationalTime | any;
     monday?: DayOperationalTime;
