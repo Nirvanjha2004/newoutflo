@@ -6,7 +6,7 @@ import { useAuthStore } from "../api/store/authStore";
 export const useAccountsQuery = () => {
   const { isAuthenticated } = useAuthStore();
 
-  return useQuery<Account[]>({
+  const response = useQuery<Account[]>({
     queryKey: ["accounts"],
     queryFn: async () => (await getAccounts()).data,
     options: {
@@ -14,6 +14,7 @@ export const useAccountsQuery = () => {
       enabled: isAuthenticated,
     },
   });
+  return response;
 };
 
 export const useAccountQuery = (accountId: string) => {

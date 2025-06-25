@@ -411,6 +411,22 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
                     setParsedCsvData(parsedData);
 
                     if (results.meta.fields && results.meta.fields.length > 0) {
+                        // Keep track of used mapping types to avoid duplicates
+                        const usedTypes = new Set<string>();
+
+                        const assignType = (suggestedType: string) => {
+                            // These types can be used multiple times
+                            if (suggestedType === 'custom-variable' || suggestedType === 'do-not-import') {
+                                return suggestedType;
+                            }
+                            // For other types, ensure they are used only once
+                            if (!usedTypes.has(suggestedType)) {
+                                usedTypes.add(suggestedType);
+                                return suggestedType;
+                            }
+                            return 'do-not-import'; // Fallback for duplicates
+                        };
+
                         // Map the columns using the client-side logic
                         const newColumnMappings: ColumnMapping[] = results.meta.fields.map(header => {
                             let type = 'do-not-import';
@@ -425,27 +441,27 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
                                 headerLower === 'url' || // Consider plain "url" as likely LinkedIn
                                 headerLower === 'link' // Consider plain "link" as likely LinkedIn
                             ) {
-                                type = 'linkedin-url';
+                                type = assignType('linkedin-url');
                             }
                             // Other existing mapping logic
                             else if (headerLower.includes('first') || headerLower.includes('fname')) {
-                                type = 'first-name';
+                                type = assignType('first-name');
                             } else if (headerLower.includes('last') || headerLower.includes('lname')) {
-                                type = 'last-name';
+                                type = assignType('last-name');
                             } else if (headerLower.includes('headline')) {
-                                type = 'head-line';
+                                type = assignType('head-line');
                             } else if (headerLower.includes('title') || headerLower.includes('role') || headerLower.includes('position')) {
-                                type = 'job-title';
+                                type = assignType('job-title');
                             } else if (headerLower.includes('location') || headerLower.includes('city') || headerLower.includes('country')) {
-                                type = 'location';
+                                type = assignType('location');
                             } else if (headerLower.includes('company') || headerLower.includes('employer') || headerLower.includes('organization')) {
-                                type = 'company';
+                                type = assignType('company');
                             } else if (headerLower.includes('email')) {
-                                type = 'email';
+                                type = assignType('email');
                             } else if (headerLower.includes('tag')) {
-                                type = 'tags';
+                                type = assignType('tags');
                             } else if (headerLower.includes('company') && (headerLower.includes('url')) && (!headerLower.includes('linkedin'))) {
-                                type = 'company-url';
+                                type = assignType('company-url');
                             }
 
                             // Get sample data for display
@@ -455,7 +471,7 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
                             if (type === 'do-not-import' && samples.length > 0) {
                                 const linkedInPattern = /linkedin\.com\/in\//i;
                                 if (samples.some(sample => linkedInPattern.test(sample))) {
-                                    type = 'linkedin-url';
+                                    type = assignType('linkedin-url');
                                 }
                             }
 
@@ -524,6 +540,22 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
                 setParsedCsvData(parsedData);
 
                 if (results.meta.fields && results.meta.fields.length > 0) {
+                    // Keep track of used mapping types to avoid duplicates
+                    const usedTypes = new Set<string>();
+
+                    const assignType = (suggestedType: string) => {
+                        // These types can be used multiple times
+                        if (suggestedType === 'custom-variable' || suggestedType === 'do-not-import') {
+                            return suggestedType;
+                        }
+                        // For other types, ensure they are used only once
+                        if (!usedTypes.has(suggestedType)) {
+                            usedTypes.add(suggestedType);
+                            return suggestedType;
+                        }
+                        return 'do-not-import'; // Fallback for duplicates
+                    };
+
                     // Improved header matching logic with more patterns
                     const newColumnMappings: ColumnMapping[] = results.meta.fields.map(header => {
                         let type = 'do-not-import';
@@ -538,27 +570,27 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
                             headerLower === 'url' || // Consider plain "url" as likely LinkedIn
                             headerLower === 'link' // Consider plain "link" as likely LinkedIn
                         ) {
-                            type = 'linkedin-url';
+                            type = assignType('linkedin-url');
                         }
                         // Other existing mapping logic
                         else if (headerLower.includes('first') || headerLower.includes('fname')) {
-                            type = 'first-name';
+                            type = assignType('first-name');
                         } else if (headerLower.includes('last') || headerLower.includes('lname')) {
-                            type = 'last-name';
+                            type = assignType('last-name');
                         } else if (headerLower.includes('headline')) {
-                            type = 'head-line';
+                            type = assignType('head-line');
                         } else if (headerLower.includes('title') || headerLower.includes('role') || headerLower.includes('position')) {
-                            type = 'job-title';
+                            type = assignType('job-title');
                         } else if (headerLower.includes('location') || headerLower.includes('city') || headerLower.includes('country')) {
-                            type = 'location';
+                            type = assignType('location');
                         } else if (headerLower.includes('company') || headerLower.includes('employer') || headerLower.includes('organization')) {
-                            type = 'company';
+                            type = assignType('company');
                         } else if (headerLower.includes('email')) {
-                            type = 'email';
+                            type = assignType('email');
                         } else if (headerLower.includes('tag')) {
-                            type = 'tags';
+                            type = assignType('tags');
                         } else if (headerLower.includes('company') && (headerLower.includes('url')) && (!headerLower.includes('linkedin'))) {
-                            type = 'company-url';
+                            type = assignType('company-url');
                         }
                         // Get sample data and look for LinkedIn-like patterns in the data
                         const samples = parsedData.slice(0, 4).map(row => row[header] || '').filter(Boolean);
@@ -567,7 +599,7 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
                         if (type === 'do-not-import' && samples.length > 0) {
                             const linkedInPattern = /linkedin\.com\/in\//i;
                             if (samples.some(sample => linkedInPattern.test(sample))) {
-                                type = 'linkedin-url';
+                                type = assignType('linkedin-url');
                             }
                         }
 
@@ -635,18 +667,18 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
             }));
         }
 
-        // If user is trying to set a column to linkedin-url
-        if (newType === 'linkedin-url') {
-            // Check if any other column is already mapped as linkedin-url
-            const existingLinkedInUrlIndex = columnMappings.findIndex(
-                (col, idx) => col.type === 'linkedin-url' && idx !== columnIndex
+        // Allow 'do-not-import' and 'custom-variable' to be selected multiple times
+        if (newType !== 'do-not-import' && newType !== 'custom-variable') {
+            // Check if the new type is already used by another column
+            const existingMappingIndex = columnMappings.findIndex(
+                (col, idx) => col.type === newType && idx !== columnIndex
             );
 
-            if (existingLinkedInUrlIndex !== -1) {
-                // Show error toast if another column is already mapped as linkedin-url
+            if (existingMappingIndex !== -1) {
+                // Show an error toast
                 toast({
-                    title: "LinkedIn URL already mapped",
-                    description: `Column "${columnMappings[existingLinkedInUrlIndex].columnName}" is already mapped as LinkedIn URL. Only one column can be used for LinkedIn profiles.`,
+                    title: "Mapping type already in use",
+                    description: `The type "${typeOptions.find(t => t.value === newType)?.label || newType}" is already mapped to the "${columnMappings[existingMappingIndex].columnName}" column. Each type can only be used once.`,
                     variant: "destructive",
                 });
                 return; // Prevent the change
@@ -1729,7 +1761,5 @@ const getRandomProfileImage = () => {
     const randomIndex = Math.floor(Math.random() * totalImages) + 1;
     return `/profileImages/user${randomIndex}.png`;
 };
-
-// Add this function near your other handler functions
 
 

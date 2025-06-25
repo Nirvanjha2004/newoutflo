@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch'; // Add this import
+import { Label } from '@/components/ui/label'; // Add this import
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -114,7 +116,7 @@ const Sequence: React.FC<SequenceProps> = ({
                     // Follow-up message needs a delay step before it
                     const newGroupId = `api-group-${index}`;
 
-                            console.log('Step data:', step.data);
+                    console.log('Step data:', step.data);
 
                     // Add delay step
                     const delayStep = {
@@ -162,7 +164,7 @@ const Sequence: React.FC<SequenceProps> = ({
 
     const updateConnectionMessage = (stepId: string, message: string) => {
         if (viewMode) return; // Prevent updates in view mode
-        
+
         setSteps(steps.map(step =>
             step.id === stepId ? { ...step, connectionMessage: message } : step
         ));
@@ -170,7 +172,9 @@ const Sequence: React.FC<SequenceProps> = ({
 
     const [isConnectionMessageOpen, setIsConnectionMessageOpen] = useState(false);
     const [currentConnectionStep, setCurrentConnectionStep] = useState<SequenceStep | null>(null);
-
+    const [excludeConnected, setExcludeConnected] = useState(
+        workflowData?.excludeConnected || false
+    );
     // Convert API workflow format to component steps format
     useEffect(() => {
         if (isUpdatingRef.current) {
@@ -288,13 +292,16 @@ const Sequence: React.FC<SequenceProps> = ({
         });
 
         // Use a deep comparison to check if the workflow actually changed
-        const newWorkflow = { steps: apiSteps };
+        const newWorkflow = {
+            steps: apiSteps,
+            excludeConnected // Add this option to the workflow
+        };
 
         // Only update if there's an actual change
         if (!isEqual(newWorkflow, workflowData)) {
             updateWorkflow(newWorkflow);
         }
-    }, [steps, workflowData, viewMode]);
+    }, [steps, workflowData, viewMode, excludeConnected]);
 
     // Add this effect to update the campaign store when steps change
     useEffect(() => {
@@ -354,7 +361,8 @@ const Sequence: React.FC<SequenceProps> = ({
                     action: "sendFollowUp",
                     data: {
                         delay: delayInSeconds,
-                        text: group.followUp.content || ""
+                        text: group.followUp.content || "",
+                        excludeConnected: excludeConnected
                     }
                 });
 
@@ -366,11 +374,20 @@ const Sequence: React.FC<SequenceProps> = ({
         setConfigs(configs);
         console.log('Updated campaign store with configs:', configs);
 
-    }, [steps, setConfigs, viewMode]);
+    }, [steps, setConfigs, viewMode, excludeConnected]);
+
+    useEffect(() => {
+        if (workflowData && !isUpdatingRef.current) {
+            // Set the excludeConnected state if present in workflowData
+            if (workflowData.excludeConnected !== undefined) {
+                setExcludeConnected(workflowData.excludeConnected);
+            }
+        }
+    }, [workflowData]);
 
     const addFollowUp = () => {
         if (viewMode) return; // Prevent in view mode
-        
+
         const groupId = `group-${Date.now()}`;
 
         const delayStep: SequenceStep = {
@@ -392,13 +409,13 @@ const Sequence: React.FC<SequenceProps> = ({
 
     const deleteFollowUpGroup = (groupId: string) => {
         if (viewMode) return; // Prevent in view mode
-        
+
         setSteps(steps.filter(step => step.groupId !== groupId));
     };
 
     const updateStepContent = (stepId: string, content: string) => {
         if (viewMode) return; // Prevent in view mode
-        
+
         setSteps(steps.map(step =>
             step.id === stepId ? { ...step, content } : step
         ));
@@ -406,7 +423,7 @@ const Sequence: React.FC<SequenceProps> = ({
 
     const updateDelay = (stepId: string, field: 'days' | 'hours', value: number) => {
         if (viewMode) return; // Prevent in view mode
-        
+
         setSteps(steps.map(step =>
             step.id === stepId && step.delay
                 ? { ...step, delay: { ...step.delay, [field]: value } }
@@ -416,27 +433,27 @@ const Sequence: React.FC<SequenceProps> = ({
 
     const insertVariable = (stepId: string, variableId: string) => {
         if (viewMode) return; // Prevent in view mode
-        
+
         console.log(`Finding step ${stepId} to insert variable ${variableId}`);
         const step = steps.find(s => s.id === stepId);
         console.log('Found step:', step);
-        
+
         if (step && step.type === 'followup') {
             // Get textarea element
             const textarea = document.querySelector(`textarea[data-step-id="${stepId}"]`) as HTMLTextAreaElement;
-            
+
             if (textarea) {
                 // Get cursor position
                 const start = textarea.selectionStart;
                 const end = textarea.selectionEnd;
-                
+
                 // Insert variable at cursor position
                 const content = step.content || '';
                 const newContent = content.substring(0, start) + `{${variableId}}` + content.substring(end);
-                
+
                 // Update step content
                 updateStepContent(stepId, newContent);
-                
+
                 // Set cursor position after inserted variable
                 setTimeout(() => {
                     textarea.focus();
@@ -457,7 +474,7 @@ const Sequence: React.FC<SequenceProps> = ({
 
     const insertConnectionVariable = (variableId: string) => {
         if (viewMode) return; // Prevent in view mode
-        
+
         if (currentConnectionStep) {
             const newMessage = (currentConnectionStep.connectionMessage || '') + `{${variableId}}`;
             updateConnectionMessage(currentConnectionStep.id, newMessage);
@@ -467,21 +484,21 @@ const Sequence: React.FC<SequenceProps> = ({
 
     const handleAddMessage = (step: SequenceStep) => {
         if (viewMode) return; // Prevent in view mode
-        
+
         setCurrentConnectionStep(step);
         setIsConnectionMessageOpen(true);
     };
 
     const handleSaveMessage = () => {
         if (viewMode) return; // Prevent in view mode
-        
+
         setIsConnectionMessageOpen(false);
         setCurrentConnectionStep(null);
     };
 
     const handleDismissMessage = () => {
         if (viewMode) return; // Prevent in view mode
-        
+
         if (currentConnectionStep) {
             // Reset to original message
             const originalStep = steps.find(s => s.id === currentConnectionStep.id);
@@ -526,11 +543,11 @@ const Sequence: React.FC<SequenceProps> = ({
 
     // Enhanced renderConnectionStep with better view mode support
     const renderConnectionStep = (step: SequenceStep) => (
-        <div className={`bg-gradient-to-r ${viewMode 
-            ? 'from-indigo-50/70 to-purple-50/70 border-indigo-100' 
+        <div className={`bg-gradient-to-r ${viewMode
+            ? 'from-indigo-50/70 to-purple-50/70 border-indigo-100'
             : 'from-indigo-50 to-purple-50 border-indigo-200'} 
             rounded-lg p-4 shadow-sm hover:shadow-md transition-all duration-200 border`}>
-            
+
             <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center shadow-lg">
@@ -557,7 +574,7 @@ const Sequence: React.FC<SequenceProps> = ({
                         )}
                     </div>
                 </div>
-                
+
                 {!viewMode && (
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -574,7 +591,7 @@ const Sequence: React.FC<SequenceProps> = ({
                         </DropdownMenuContent>
                     </DropdownMenu>
                 )}
-                
+
                 {/* View mode - show view button instead of dropdown */}
                 {viewMode && step.connectionMessage && (
                     <Button
@@ -596,7 +613,7 @@ const Sequence: React.FC<SequenceProps> = ({
                     </Button>
                 )}
             </div>
-            
+
             {/* View mode - show message if available */}
             {viewMode && step.connectionMessage && (
                 <div className="mt-3 p-3 bg-white/80 rounded-md text-sm text-gray-700 border border-gray-100">
@@ -616,7 +633,7 @@ const Sequence: React.FC<SequenceProps> = ({
     );
 
     // Enhanced renderDelayStep with special handling for zero days
-    const renderDelayStep = (step: SequenceStep) => (
+    const renderDelayStep = (step: SequenceStep, followUpNumber: number) => (
         <div className={`bg-slate-50 border ${viewMode ? 'border-slate-100' : 'border-slate-200'} rounded-lg px-4 py-3`}>
             <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
@@ -625,14 +642,14 @@ const Sequence: React.FC<SequenceProps> = ({
                     </div>
                     <div className="flex items-center space-x-3 text-sm">
                         <span className="text-slate-600 font-medium">Wait</span>
-                        
+
                         {viewMode ? (
-                            // View mode - properly handle zero days
+                            // View mode - properly handle zero days and dynamic reference point
                             <span className="text-slate-600">
                                 {(() => {
                                     const days = typeof step.delay?.days === 'number' ? step.delay.days : 0;
                                     const hours = step.delay?.hours || 0;
-                                    
+
                                     if (days === 0 && hours === 0) {
                                         return '0 days';
                                     } else if (days === 0) {
@@ -643,10 +660,12 @@ const Sequence: React.FC<SequenceProps> = ({
                                         return `${days} ${days === 1 ? 'day' : 'days'} and ${hours} ${hours === 1 ? 'hour' : 'hours'}`;
                                     }
                                 })()}
-                                {' after connection is accepted'}
+                                {followUpNumber === 1
+                                    ? ' after connection is accepted'
+                                    : ` after ${followUpNumber === 2 ? 'first' : followUpNumber === 3 ? 'second' : followUpNumber === 4 ? 'third' : (followUpNumber - 1) + 'th'} follow-up`}
                             </span>
                         ) : (
-                            // Edit mode - unchanged
+                            // Edit mode - also update this part
                             <>
                                 <div className="flex items-center space-x-2">
                                     <input
@@ -671,7 +690,11 @@ const Sequence: React.FC<SequenceProps> = ({
                                     />
                                     <span className="text-slate-600 text-xs">hours</span>
                                 </div>
-                                <span className="text-slate-500 text-xs">after connection is accepted</span>
+                                <span className="text-slate-500 text-xs">
+                                    {followUpNumber === 1
+                                        ? 'after connection is accepted'
+                                        : `after ${followUpNumber === 2 ? 'first' : followUpNumber === 3 ? 'second' : followUpNumber === 4 ? 'third' : (followUpNumber - 1) + 'th'} follow-up`}
+                                </span>
                             </>
                         )}
                     </div>
@@ -714,7 +737,7 @@ const Sequence: React.FC<SequenceProps> = ({
                         >
                             <Eye className="w-4 h-4" />
                         </Button>
-                        
+
                         {!viewMode && (
                             <Button
                                 variant="ghost"
@@ -775,17 +798,22 @@ const Sequence: React.FC<SequenceProps> = ({
             </div>
         );
     };
-    
+
     // Enhanced renderFollowUpGroup with better view mode styling
-    const renderFollowUpGroup = (delayStep: SequenceStep, followUpStep: SequenceStep, index: number) => (
-        <div className={`${viewMode ? 'bg-gray-50/30' : 'bg-gray-50/50'} border ${viewMode ? 'border-gray-100' : 'border-gray-200'} rounded-lg p-3 shadow-sm space-y-2`}>
-            {renderDelayStep(delayStep)}
-            <div className="flex justify-center">
-                <div className="w-px h-3 bg-gray-300"></div>
+    const renderFollowUpGroup = (delayStep: SequenceStep, followUpStep: SequenceStep, index: number) => {
+        // Calculate which follow-up number this is (1-based)
+        const followUpNumber = steps.filter((s, i) => s.type === 'followup' && i <= index).length;
+
+        return (
+            <div className={`${viewMode ? 'bg-gray-50/30' : 'bg-gray-50/50'} border ${viewMode ? 'border-gray-100' : 'border-gray-200'} rounded-lg p-3 shadow-sm space-y-2`}>
+                {renderDelayStep(delayStep, followUpNumber)}
+                <div className="flex justify-center">
+                    <div className="w-px h-3 bg-gray-300"></div>
+                </div>
+                {renderFollowUpStep(followUpStep, index)}
             </div>
-            {renderFollowUpStep(followUpStep, index)}
-        </div>
-    );
+        );
+    };
 
     const renderStepConnector = () => (
         <div className="flex justify-center py-0.5">
@@ -795,7 +823,7 @@ const Sequence: React.FC<SequenceProps> = ({
 
     const renderLeadListInfo = () => {
         if (!leadListName) return null;
-        
+
         return (
             <div className="mb-6 bg-white border border-blue-200 rounded-lg p-4 shadow-sm">
                 <div className="flex items-center justify-between">
@@ -852,6 +880,50 @@ const Sequence: React.FC<SequenceProps> = ({
 
                 {renderLeadListInfo()}
                 
+                {/* Add the "exclude connected" option below the lead info */}
+                {hasFollowUps && (
+                    <div className={`mb-6 ${viewMode ? 'bg-gray-50/50' : 'bg-white'} border ${viewMode ? 'border-gray-100' : 'border-gray-200'} rounded-lg p-4 shadow-sm`}>
+                        <div className="flex items-center justify-between">
+                            <div className="flex flex-col gap-1">
+                                <h3 className="text-sm font-medium text-gray-800">Follow-up Settings</h3>
+                                <p className="text-xs text-gray-500">Configure how follow-up messages are handled</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="flex items-center space-x-2">
+                                    <Switch
+                                        id="exclude-connected"
+                                        checked={excludeConnected}
+                                        onCheckedChange={!viewMode ? setExcludeConnected : undefined}
+                                        disabled={viewMode}
+                                        className="data-[state=checked]:bg-blue-600"
+                                    />
+                                    <Label 
+                                        htmlFor="exclude-connected" 
+                                        className="text-sm font-medium cursor-pointer"
+                                    >
+                                        Don't send follow-ups to already connected
+                                    </Label>
+                                </div>
+                                
+                                {excludeConnected && (
+                                    <Badge className="bg-blue-100 text-blue-700 border-blue-200">
+                                        Active
+                                    </Badge>
+                                )}
+                            </div>
+                        </div>
+                        
+                        {excludeConnected && (
+                            <div className="mt-2 p-2 bg-blue-50 rounded-md">
+                                <p className="text-xs text-blue-700 flex items-center">
+                                    <AlertCircle className="w-3 h-3 mr-1" />
+                                    Follow-up messages will only be sent to leads who haven't connected yet
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 <div className="space-y-1">
                     {/* Connection Step */}
                     {groupedSteps.map((group, index) => (
@@ -892,7 +964,7 @@ const Sequence: React.FC<SequenceProps> = ({
                         </div>
                     </div>
                 )}
-                
+
                 {/* View mode summary when there are no follow-ups */}
                 {viewMode && !hasFollowUps && groupedSteps.length > 0 && (
                     <div className="pt-6 mt-6 text-center">
@@ -901,7 +973,7 @@ const Sequence: React.FC<SequenceProps> = ({
                         </p>
                     </div>
                 )}
-                
+
                 {/* View mode empty state */}
                 {viewMode && groupedSteps.length === 0 && (
                     <div className="pt-6 mt-6 text-center bg-gray-50 p-8 rounded-lg border border-gray-200">
@@ -920,7 +992,7 @@ const Sequence: React.FC<SequenceProps> = ({
                             {viewMode ? "Connection Request Message" : "Edit Connection Request Message"}
                         </SheetTitle>
                         <SheetDescription>
-                            {viewMode 
+                            {viewMode
                                 ? "View your connection request message."
                                 : "Customize your connection request message with personalized variables."}
                         </SheetDescription>
@@ -933,7 +1005,7 @@ const Sequence: React.FC<SequenceProps> = ({
                                 View-only mode. Message cannot be edited.
                             </div>
                         )}
-                        
+
                         <div>
                             <label className="text-sm font-medium text-gray-700 mb-2 block">
                                 Message
