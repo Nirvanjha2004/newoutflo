@@ -67,7 +67,7 @@ const emptyCampaign: Campaign = {
     ],
   },
   state: CampaignState.RUNNING,
-  timezone: "IST", // Changed default timezone from GMT to IST
+  timeZone: "IST", // Changed default timezone from GMT to IST
 };
 
 export const campaignStore = create<ICampaignStoreState & ICampaignStoreActions>()((set, get) => ({

@@ -8,6 +8,7 @@ import {
 } from "../api/types/campaignTypes";
 import { Campaign, CampaignState, CampaignStepType } from "../types/campaigns";
 import { authStore } from "./store/authStore";
+import { zoneMap } from "@/components/Campaign/ReviewLaunch";
 
 export const getCampaigns = async (): Promise<GetCampaignsResponse> => {
   // Mocking
@@ -119,6 +120,11 @@ const convertDelayToMs = (delay: string | number): number => {
   console.warn('Failed to parse delay value:', delay);
   return 0;
 };
+  
+  // Default value if parsing fails
+  console.warn('Failed to parse delay value:', delay);
+  return 0;
+};
 
 export const postCampaign = async (campaignData: Campaign): Promise<GenericApiResponse> => {
   const formData = new FormData();
@@ -150,8 +156,7 @@ export const postCampaign = async (campaignData: Campaign): Promise<GenericApiRe
         parentID: config.parentID,
         action: config.action,
         data: { 
-          // Convert seconds to ms, ensuring we handle our delay values which include days/hours/minutes
-          delay: typeof config.data.delay === 'number' ? config.data.delay * 1000 : 0,
+          delay: typeof config.data.delay === 'number' ? config.data.delay * 1000 : 0, // Convert seconds to ms
           text: config.data.text || "",
           // Include excludeConnected flag if it exists
           ...(config.data.excludeConnected !== undefined ? { excludeConnected: config.data.excludeConnected } : {})
@@ -210,16 +215,13 @@ export const postCampaign = async (campaignData: Campaign): Promise<GenericApiRe
     operationalTimes
   }));
 
-  // Format local operational times exactly as shown in the image
-  const localStartHour = campaignData.localOperationalTimes?.startTime || 9;
-  const localEndHour = campaignData.localOperationalTimes?.endTime || 23;
-  const userTimezone = campaignData.timezone || "IST";
+
+
+  const userTimeZone = campaignData.timeZone
+  const ianaZone = zoneMap[userTimeZone]
+  console.log("User Time Zone:", userTimeZone , "IANA Zone:", ianaZone);
+  formData.append("timeZone", ianaZone);
   
-  formData.append("localOperationalTimes", JSON.stringify({
-    startTime: localStartHour,
-    endTime: localEndHour,
-    timezone: userTimezone
-  }));
 
   // Add leads file if exists
   if (campaignData.leads?.file) {

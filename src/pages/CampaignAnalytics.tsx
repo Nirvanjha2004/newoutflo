@@ -73,9 +73,7 @@ interface CampaignAnalyticsProps {
     responses: number
   };
   campaignData?: {
-    localOperationalTimes?: {
-      timezone?: string;
-    }
+    timeZone : string;
   };
 }
 
@@ -89,7 +87,7 @@ const CampaignAnalytics = ({
 }: CampaignAnalyticsProps) => {
   // Extract timezone from campaign data or use browser default
   const userTimezone = useMemo(() => {
-    return campaignData?.localOperationalTimes?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return campaignData?.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone;
   }, [campaignData]);
 
 
@@ -252,7 +250,7 @@ const CampaignAnalytics = ({
           }
         }
 
-        let mappedStatus = mapLeadStatus(lead.status);
+        const mappedStatus = mapLeadStatus(lead.status);
         const accountName = getAccountName(lead.accountId);
 
         return {
@@ -317,7 +315,7 @@ const CampaignAnalytics = ({
 
   // Update the filteredLeads useMemo to filter by multiple accounts
   const filteredLeads = useMemo(() => {
-    let filtered = allLeads.filter(lead => {
+    const filtered = allLeads.filter(lead => {
       // Search filter - check both name and URL
       const matchesSearch =
         (lead.name && lead.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
