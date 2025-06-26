@@ -37,7 +37,7 @@ interface SequenceStep {
     id: string;
     type: 'connection' | 'delay' | 'followup';
     content?: string;
-    delay?: { days: number; hours: number };
+    delay?: { days: number; hours: number; minutes: number }; // Add minutes here
     status?: 'accepted' | 'pending';
     groupId?: string;
     connectionMessage?: string;
@@ -117,14 +117,21 @@ const Sequence: React.FC<SequenceProps> = ({
                     const newGroupId = `api-group-${index}`;
 
                     console.log('Step data:', step.data);
+                    
+                    // Calculate days, hours and minutes from seconds
+                    const totalSeconds = step.data.delay ?? 0;
+                    const days = Math.floor(totalSeconds / (24 * 60 * 60));
+                    const hours = Math.floor((totalSeconds % (24 * 60 * 60)) / (60 * 60));
+                    const minutes = Math.floor((totalSeconds % (60 * 60)) / 60);
 
-                    // Add delay step
+                    // Add delay step with minutes
                     const delayStep = {
                         id: `api-delay-${index}`,
                         type: 'delay',
                         delay: {
-                            days: Math.floor((step.data.delay ?? 0) / (24 * 60 * 60)),
-                            hours: Math.floor(((step.data.delay ?? 0) % (24 * 60 * 60)) / (60 * 60))
+                            days,
+                            hours,
+                            minutes
                         },
                         groupId: newGroupId
                     };
@@ -150,7 +157,7 @@ const Sequence: React.FC<SequenceProps> = ({
                 {
                     id: '2',
                     type: 'delay',
-                    delay: { days: 1, hours: 0 },
+                    delay: { days: 1, hours: 0, minutes: 0 }, // Initialize with minutes
                     groupId: 'group-1'
                 },
                 {
@@ -200,13 +207,14 @@ const Sequence: React.FC<SequenceProps> = ({
                     // Follow-up message needs a delay step before it
                     const newGroupId = `api-group-${index}`;
 
-                    // Add delay step
+                    // Add delay step - FIX: Add minutes calculation
                     convertedSteps.push({
                         id: `api-delay-${index}`,
                         type: 'delay',
                         delay: {
                             days: Math.floor((step.data.delay ?? 0) / (24 * 60 * 60)),
-                            hours: Math.floor(((step.data.delay ?? 0) % (24 * 60 * 60)) / (60 * 60))
+                            hours: Math.floor(((step.data.delay ?? 0) % (24 * 60 * 60)) / (60 * 60)),
+                            minutes: Math.floor(((step.data.delay ?? 0) % (60 * 60)) / 60) // Add minutes calculation
                         },
                         groupId: newGroupId
                     });
@@ -276,10 +284,11 @@ const Sequence: React.FC<SequenceProps> = ({
         // Convert each complete group to an API step
         followUpGroups.forEach((group, groupId) => {
             if (group.delay && group.followUp) {
-                // Calculate delay in seconds
+                // Calculate delay in seconds - include minutes
                 const delayInSeconds =
                     (group.delay.delay?.days || 0) * 24 * 60 * 60 +
-                    (group.delay.delay?.hours || 0) * 60 * 60;
+                    (group.delay.delay?.hours || 0) * 60 * 60 +
+                    (group.delay.delay?.minutes || 0) * 60;
 
                 apiSteps.push({
                     type: CampaignStepType.FOLLOW_UP,
@@ -350,10 +359,11 @@ const Sequence: React.FC<SequenceProps> = ({
         let followUpIndex = 1;
         followUpGroups.forEach((group, groupId) => {
             if (group.delay && group.followUp) {
-                // Calculate delay in seconds
+                // Calculate delay in seconds - include minutes
                 const delayInSeconds =
                     (group.delay.delay?.days || 0) * 24 * 60 * 60 +
-                    (group.delay.delay?.hours || 0) * 60 * 60;
+                    (group.delay.delay?.hours || 0) * 60 * 60 +
+                    (group.delay.delay?.minutes || 0) * 60;
 
                 configs.push({
                     id: followUpIndex,
@@ -393,7 +403,7 @@ const Sequence: React.FC<SequenceProps> = ({
         const delayStep: SequenceStep = {
             id: `delay-${Date.now()}`,
             type: 'delay',
-            delay: { days: 2, hours: 0 },
+            delay: { days: 2, hours: 0, minutes: 0 }, // Initialize with minutes
             groupId
         };
 
@@ -421,7 +431,7 @@ const Sequence: React.FC<SequenceProps> = ({
         ));
     };
 
-    const updateDelay = (stepId: string, field: 'days' | 'hours', value: number) => {
+    const updateDelay = (stepId: string, field: 'days' | 'hours' | 'minutes', value: number) => {
         if (viewMode) return; // Prevent in view mode
 
         setSteps(steps.map(step =>
@@ -644,28 +654,35 @@ const Sequence: React.FC<SequenceProps> = ({
                         <span className="text-slate-600 font-medium">Wait</span>
 
                         {viewMode ? (
-                            // View mode - properly handle zero days and dynamic reference point
+                            // View mode - properly handle zero days and include minutes
                             <span className="text-slate-600">
                                 {(() => {
                                     const days = typeof step.delay?.days === 'number' ? step.delay.days : 0;
                                     const hours = step.delay?.hours || 0;
+                                    const minutes = step.delay?.minutes || 0;
 
-                                    if (days === 0 && hours === 0) {
+                                    if (days === 0 && hours === 0 && minutes === 0) {
                                         return '0 days';
-                                    } else if (days === 0) {
-                                        return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
-                                    } else if (hours === 0) {
-                                        return `${days} ${days === 1 ? 'day' : 'days'}`;
-                                    } else {
-                                        return `${days} ${days === 1 ? 'day' : 'days'} and ${hours} ${hours === 1 ? 'hour' : 'hours'}`;
                                     }
+                                    
+                                    let timeText = '';
+                                    if (days > 0) {
+                                        timeText += `${days} ${days === 1 ? 'day' : 'days'} `;
+                                    }
+                                    if (hours > 0) {
+                                        timeText += `${timeText.length > 0 ? 'and ' : ''}${hours} ${hours === 1 ? 'hour' : 'hours'} `;
+                                    }
+                                    if (minutes > 0) {
+                                        timeText += `${timeText.length > 0 ? 'and ' : ''}${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
+                                    }
+                                    return timeText.trim();
                                 })()}
                                 {followUpNumber === 1
                                     ? ' after connection is accepted'
                                     : ` after ${followUpNumber === 2 ? 'first' : followUpNumber === 3 ? 'second' : followUpNumber === 4 ? 'third' : (followUpNumber - 1) + 'th'} follow-up`}
                             </span>
                         ) : (
-                            // Edit mode - also update this part
+                            // Edit mode - add minutes input
                             <>
                                 <div className="flex items-center space-x-2">
                                     <input
@@ -689,6 +706,19 @@ const Sequence: React.FC<SequenceProps> = ({
                                         disabled={viewMode}
                                     />
                                     <span className="text-slate-600 text-xs">hours</span>
+                                </div>
+                                {/* Add minutes input */}
+                                <div className="flex items-center space-x-2">
+                                    <input
+                                        type="number"
+                                        value={step.delay?.minutes || 0}
+                                        onChange={(e) => updateDelay(step.id, 'minutes', parseInt(e.target.value) || 0)}
+                                        className="w-14 px-2 py-1.5 border border-slate-300 rounded-md text-center text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                        min="0"
+                                        max="59"
+                                        disabled={viewMode}
+                                    />
+                                    <span className="text-slate-600 text-xs">mins</span>
                                 </div>
                                 <span className="text-slate-500 text-xs">
                                     {followUpNumber === 1
