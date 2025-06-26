@@ -30,6 +30,7 @@ export type CampaignStep = {
 };
 
 export type CampaignWorkflow = {
+  excludeConnected: any;
   steps: CampaignStep[];
 };
 
@@ -63,6 +64,7 @@ export interface CampaignConfig {
   data: {
     delay: number;
     text: string;
+    excludeConnected: boolean;
   };
 }
 

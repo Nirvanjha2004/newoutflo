@@ -14,12 +14,12 @@ export type ColumnType =
   | "first-name"
   | "last-name" 
   | "full-name"
-  | "headline"
+  | "head-line"
   | "email"
   | "job-title"
   | "tags"
-  | "first-para"
-  | "do-not-import";
+  | "do-not-import"
+  | "company-url";
 
 export type CSVColumn = {
   name: string;

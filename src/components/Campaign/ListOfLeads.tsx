@@ -13,6 +13,7 @@ import { useCampaignStore } from '@/api/store/campaignStore/campaign'; // Import
 import { nanoid } from 'nanoid'; // For generating unique IDs
 import { getMappingSuggestions, processLeadsWithMapping } from '@/api/leads';
 import { VerificationResultsModal } from '@/components/VerificationResultsModal';
+import { isValidLinkedInProfileUrl, isValidCompanyLinkedInProfileUrl } from 'lib-linkedin-url';
 
 // Update the Lead interface to include more fields
 interface Lead {
@@ -93,11 +94,16 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
         },
         verifyLeads: true
     });
+
+
     // Add this state variable near your other state declarations
     const [uploadInitiated, setUploadInitiated] = useState(false);
     // Add this state variable near your other state declarations
     const [verificationFailed, setVerificationFailed] = useState<string | null>(null);
+    // Add state to track when filtering is complete
+    const [filteringComplete, setFilteringComplete] = useState(false);
 
+    console.log("The parsed Csv Data:", parsedCsvData);
     useEffect(() => {
         // Notify parent when mapping state changes
         if (onMappingStateChange) {
@@ -105,12 +111,9 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
         }
     }, [showColumnMapping, onMappingStateChange]);
 
-    // Add this function after handleClientSideMapping
-
+    // Optimized verifyLeadData function
     const verifyLeadData = async () => {
         console.log("Starting lead verification process");
-        console.log("Parsed CSV data sample:", parsedCsvData);
-        console.log("Column mappings:", columnMappings);
 
         // Validate that we have data to work with
         if (!parsedCsvData || parsedCsvData.length === 0) {
@@ -124,190 +127,114 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
             };
         }
 
-        return new Promise<any>((resolve) => {
-            setTimeout(() => {
-                try {
-                    // Find URL columns
-                    const urlColumns = columnMappings
-                        .filter(col => col.type === 'linkedin-url')
-                        .map(col => col.columnName);
+        // Find URL columns
+        const urlColumns = columnMappings
+            .filter(col => col.type === 'linkedin-url')
+            .map(col => col.columnName);
 
-                    console.log("URL Columns for verification:", urlColumns);
+        // Check if any LinkedIn URL columns are mapped
+        if (urlColumns.length === 0) {
+            setVerificationFailed("No LinkedIn URL column mapped for verification. Please map at least one column as LinkedIn URL.");
+            return {
+                urlsVerified: { valid: 0, invalid: 0, invalidUrls: [] },
+                customVariables: { present: 0, missing: 0, empty: 0 },
+                columnCompleteness: {},
+                completed: true,
+                error: "No LinkedIn URL columns mapped"
+            };
+        }
 
-                    // UPDATED: If no LinkedIn URL columns are found, set verification failed state
-                    if (urlColumns.length === 0) {
-                        console.log("No LinkedIn URL columns found for verification");
-                        setVerificationFailed("No LinkedIn URL column mapped for verification. Please map at least one column as LinkedIn URL.");
+        const totalRows = parsedCsvData.length;
 
-                        // Return empty results
-                        resolve({
-                            urlsVerified: { valid: 0, invalid: 0, invalidUrls: [] },
-                            customVariables: { present: 0, missing: 0, empty: 0 },
-                            columnCompleteness: {},
-                            completed: true,
-                            error: "No LinkedIn URL columns mapped"
-                        });
-                        return;
-                    }
+        // URL verification results object
+        const urlVerificationResults = {
+            valid: 0,
+            invalid: 0,
+            invalidUrls: [] as { row: number, url: string }[]
+        };
 
-                    // Find custom variable columns (tags in this case)
-                    const tagColumns = columnMappings
-                        .filter(col => col.type === 'tags')
-                        .map(col => col.columnName);
+        // Verify each URL in the dataset
+        parsedCsvData.forEach((row, rowIndex) => {
+            let rowValid = false;
 
-                    console.log("Tag columns for verification:", tagColumns);
+            urlColumns.forEach(colName => {
+                const url = row[colName];
 
-                    // Count total rows for calculations
-                    const totalRows = parsedCsvData.length;
-                    console.log("Total rows to verify:", totalRows);
+                // Skip empty URLs
+                if (!url || url.trim() === '') {
+                    return;
+                }
 
-                    // URL verification
-                    const urlVerificationResults = {
-                        valid: 0,
-                        invalid: 0,
-                        invalidUrls: [] as { row: number, url: string }[]
-                    };
+                // Normalize URL by trimming and ensuring it has protocol
+                let normalizedUrl = url.trim();
+                if (!/^https?:\/\//i.test(normalizedUrl)) {
+                    normalizedUrl = 'https://' + normalizedUrl;
+                }
 
-                    // Process URLs if we have parsed data and URL columns
-                    if (parsedCsvData.length > 0 && urlColumns.length > 0) {
-                        // Display some sample data for debugging
-                        console.log("Sample row data for URL verification:",
-                            urlColumns.map(col => ({
-                                column: col,
-                                samples: parsedCsvData.slice(0, 3).map(row => row[col])
-                            }))
-                        );
+                // Use the validation library
+                const isValid = isValidLinkedInProfileUrl(normalizedUrl) ||
+                    isValidCompanyLinkedInProfileUrl(normalizedUrl);
 
-                        // Enhanced regex patterns for LinkedIn URLs with better support for variations
-                        // This handles more country-specific domains, special characters, and tracking parameters
-                        const linkedinProfileRegex = /^(?:https?:\/\/)?(?:www\.)?linkedin\.(?:com|co\.\w{2}|[a-z]{2,3})\/(?:in|profile)\/(?:[\w\-\.%+]+)\/?(?:[?#].*)?$/i;
-                        const linkedinCompanyRegex = /^(?:https?:\/\/)?(?:www\.)?linkedin\.(?:com|co\.\w{2}|[a-z]{2,3})\/(?:company|school|organization)\/(?:[\w\-\.%+]+)\/?(?:[?#].*)?$/i;
-
-                        parsedCsvData.forEach((row, rowIndex) => {
-                            urlColumns.forEach(colName => {
-                                const url = row[colName];
-
-                                // Skip empty URLs
-                                if (!url || url.trim() === '') {
-                                    return;
-                                }
-
-                                // Normalize URL by trimming and ensuring it has protocol
-                                let normalizedUrl = url.trim();
-                                if (!/^https?:\/\//i.test(normalizedUrl)) {
-                                    normalizedUrl = 'https://' + normalizedUrl;
-                                }
-
-                                // Check if URL matches either LinkedIn profile or company pattern
-                                const isValidProfile = linkedinProfileRegex.test(normalizedUrl);
-                                const isValidCompany = linkedinCompanyRegex.test(normalizedUrl);
-
-                                // Additional check for obviously LinkedIn URLs that might not match the patterns
-                                const isObviouslyLinkedIn = /linkedin\.(?:com|co)/i.test(normalizedUrl) &&
-                                    (/\/in\//i.test(normalizedUrl) || /\/company\//i.test(normalizedUrl));
-
-                                const isValid = isValidProfile || isValidCompany || isObviouslyLinkedIn;
-
-                                if (isValid) {
-                                    urlVerificationResults.valid++;
-                                } else {
-                                    urlVerificationResults.invalid++;
-                                    urlVerificationResults.invalidUrls.push({
-                                        row: rowIndex + 1,
-                                        url: url
-                                    });
-                                }
-                            });
-                        });
-
-                        console.log("URL verification results:", urlVerificationResults);
-                    } else {
-                        console.log("No URL data to verify - either no parsed data or no URL columns");
-                    }
-
-                    // Custom variables check
-                    const customVarResults = {
-                        present: 0,
-                        missing: 0,
-                        empty: 0
-                    };
-
-                    if (parsedCsvData.length > 0 && tagColumns.length > 0) {
-                        parsedCsvData.forEach(row => {
-                            tagColumns.forEach(colName => {
-                                if (colName in row) {
-                                    if (row[colName] && row[colName].trim() !== '') {
-                                        customVarResults.present++;
-                                    } else {
-                                        customVarResults.empty++;
-                                    }
-                                } else {
-                                    customVarResults.missing++;
-                                }
-                            });
-                        });
-                    } else {
-                        // Default values for when no tag columns exist
-                        customVarResults.present = totalRows;
-                    }
-
-                    // Column completeness check
-                    const completenessResults: Record<string, {
-                        missing: number;
-                        missingRows: number[];
-                    }> = {};
-
-                    // Check all mapped columns except those marked as do-not-import
-                    columnMappings.forEach(col => {
-                        if (col.type !== 'do-not-import') {
-                            const missingRows: number[] = [];
-                            let missingCount = 0;
-
-                            parsedCsvData.forEach((row, rowIndex) => {
-                                if (!row[col.columnName] || row[col.columnName].trim() === '') {
-                                    missingCount++;
-                                    if (missingRows.length < 3) { // Limit to first 3 for display
-                                        missingRows.push(rowIndex + 1);
-                                    }
-                                }
-                            });
-
-                            if (missingCount > 0) {
-                                completenessResults[col.columnName] = {
-                                    missing: missingCount,
-                                    missingRows: missingRows
-                                };
-                            }
-                        }
-                    });
-
-                    // Create final verification results
-                    const results = {
-                        urlsVerified: urlVerificationResults,
-                        customVariables: customVarResults,
-                        columnCompleteness: completenessResults,
-                        completed: true
-                    };
-
-                    console.log("Verification complete:", results);
-                    // After processing URLs, update failure state if needed
-                    if (urlColumns.length > 0 && urlVerificationResults.valid === 0) {
-                        setVerificationFailed("No valid LinkedIn URLs were found. Please check your column mapping.");
-                    }
-
-                    resolve(results);
-                } catch (error) {
-                    console.error("Error during verification:", error);
-                    resolve({
-                        urlsVerified: { valid: 0, invalid: 0, invalidUrls: [] },
-                        customVariables: { present: 0, missing: 0, empty: 0 },
-                        columnCompleteness: {},
-                        completed: true,
-                        error: error instanceof Error ? error.message : "Unknown error during verification"
+                if (isValid) {
+                    urlVerificationResults.valid++;
+                    rowValid = true; // Mark this row as having at least one valid URL
+                } else {
+                    urlVerificationResults.invalid++;
+                    urlVerificationResults.invalidUrls.push({
+                        row: rowIndex + 1, // 1-based for user display
+                        url: url
                     });
                 }
-            }, 1500);
+            });
         });
+
+
+        // Also check other fields for completeness
+        const completenessResults: Record<string, {
+            missing: number;
+            missingRows: number[];
+        }> = {};
+
+        // Check important fields like name, email, etc.
+        const importantFields = columnMappings.filter(
+            col => ['first-name', 'last-name', 'email'].includes(col.type)
+        );
+
+        importantFields.forEach(col => {
+            const missingRows: number[] = [];
+            let missingCount = 0;
+
+            parsedCsvData.forEach((row, rowIndex) => {
+                if (!row[col.columnName] || row[col.columnName].trim() === '') {
+                    missingCount++;
+                    if (missingRows.length < 3) { // Limit to first 3 for display
+                        missingRows.push(rowIndex + 1);
+                    }
+                }
+            });
+
+            if (missingCount > 0) {
+                completenessResults[col.columnName] = {
+                    missing: missingCount,
+                    missingRows: missingRows
+                };
+            }
+        });
+
+        // Create final verification results
+        const results = {
+            urlsVerified: urlVerificationResults,
+            customVariables: { present: totalRows, missing: 0, empty: 0 }, // Simplified
+            columnCompleteness: completenessResults,
+            completed: true
+        };
+
+        // Check if we have ANY valid LinkedIn URLs
+        if (urlVerificationResults.valid === 0) {
+            setVerificationFailed("No valid LinkedIn URLs were found. Please check your column mapping.");
+        }
+
+        return results;
     };
 
     // Column mappings in exact sequence requested
@@ -423,11 +350,13 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
         value: 'linkedin-url',
         label: '🔗 LinkedIn URL',
         icon: '🔗'
-    }, {
-        value: 'company-url',
-        label: '🔗 Company URL',
-        icon: '🔗'
-    }, {
+    },
+    // {
+    //     value: 'company-url',
+    //     label: '🔗 Company URL',
+    //     icon: '🔗'
+    // }, 
+    {
         value: 'head-line',
         label: '📝 Headline',
         icon: '📝'
@@ -443,10 +372,6 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
         value: 'company',
         label: '🏢 Company',
         icon: '🏢'
-    }, {
-        value: 'email',
-        label: '✉️ Email',
-        icon: '✉️'
     }, {
         value: 'custom-variable',
         label: '⚙️ Custom Variable',
@@ -477,57 +402,130 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
             // Set loading state
             setIsLoading(true);
 
-            // Send the raw file to backend for mapping suggestions
-            const response = await getMappingSuggestions(file);
-            const suggestedMappings = response.data.mappings;
-            const parsedData = response.data.previewData || [];
-            console.log("The response data is :", response);
-            // Start local parsing for preview if backend didn't provide preview data
-            if (!parsedData.length) {
-                Papa.parse(file, {
-                    header: true,
-                    skipEmptyLines: true,
-                    // preview: 10, // Just parse a few rows for preview
-                    complete: (results) => {
-                        setParsedCsvData(results.data as any[]);
+            // Parse the CSV file directly with PapaParse
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: (results) => {
+                    const parsedData = results.data as any[];
+                    setParsedCsvData(parsedData);
+
+                    if (results.meta.fields && results.meta.fields.length > 0) {
+                        // Keep track of used mapping types to avoid duplicates
+                        const usedTypes = new Set<string>();
+
+                        const assignType = (suggestedType: string) => {
+                            // These types can be used multiple times
+                            if (suggestedType === 'custom-variable' || suggestedType === 'do-not-import') {
+                                return suggestedType;
+                            }
+                            // For other types, ensure they are used only once
+                            if (!usedTypes.has(suggestedType)) {
+                                usedTypes.add(suggestedType);
+                                return suggestedType;
+                            }
+                            return 'do-not-import'; // Fallback for duplicates
+                        };
+
+                        // Map the columns using the client-side logic
+                        const newColumnMappings: ColumnMapping[] = results.meta.fields.map(header => {
+                            let type = 'do-not-import';
+                            const headerLower = header.toLowerCase();
+
+                            // Improved LinkedIn URL detection
+                            if (
+                                headerLower.includes('linkedin') ||
+                                headerLower.includes('profile url') ||
+                                headerLower.includes('profile link') ||
+                                (headerLower.includes('url') && headerLower.includes('profile')) ||
+                                headerLower === 'url' || // Consider plain "url" as likely LinkedIn
+                                headerLower === 'link' // Consider plain "link" as likely LinkedIn
+                            ) {
+                                type = assignType('linkedin-url');
+                            }
+                            // Other existing mapping logic
+                            else if (headerLower.includes('first') || headerLower.includes('fname')) {
+                                type = assignType('first-name');
+                            } else if (headerLower.includes('last') || headerLower.includes('lname')) {
+                                type = assignType('last-name');
+                            } else if (headerLower.includes('headline')) {
+                                type = assignType('head-line');
+                            } else if (headerLower.includes('title') || headerLower.includes('role') || headerLower.includes('position')) {
+                                type = assignType('job-title');
+                            } else if (headerLower.includes('location') || headerLower.includes('city') || headerLower.includes('country')) {
+                                type = assignType('location');
+                            } else if (headerLower.includes('company') || headerLower.includes('employer') || headerLower.includes('organization')) {
+                                type = assignType('company');
+                            } else if (headerLower.includes('email')) {
+                                type = assignType('email');
+                            } else if (headerLower.includes('tag')) {
+                                type = assignType('tags');
+                            } else if (headerLower.includes('company') && (headerLower.includes('url')) && (!headerLower.includes('linkedin'))) {
+                                type = assignType('company-url');
+                            }
+
+                            // Get sample data for display
+                            const samples = parsedData.slice(0, 4).map(row => row[header] || '').filter(Boolean);
+
+                            // If the type is still do-not-import, check if samples look like LinkedIn URLs
+                            if (type === 'do-not-import' && samples.length > 0) {
+                                const linkedInPattern = /linkedin\.com\/in\//i;
+                                if (samples.some(sample => linkedInPattern.test(sample))) {
+                                    type = assignType('linkedin-url');
+                                }
+                            }
+
+                            return {
+                                columnName: header,
+                                type,
+                                samples
+                            };
+                        });
+
+                        // Check if tags field exists in the mappings
+                        const hasTagsField = newColumnMappings.some(col => col.type === 'tags');
+
+                        // If not, add a default tags field
+                        if (!hasTagsField) {
+                            newColumnMappings.push({
+                                columnName: 'Tags (Not in CSV)',
+                                type: 'tags',
+                                samples: ['Add tags manually']
+                            });
+                        }
+
+                        setColumnMappings(newColumnMappings);
+                        setValidRowsCount(parsedData.length);
                     }
-                });
-            } else {
-                // Use backend-provided preview data
-                setParsedCsvData(parsedData);
-            }
 
-            console.log("The parsed csv data after parsing is:", parsedCsvData);
+                    console.log("Parsed CSV data:", parsedData);
+                    console.log("Detected columns:", results.meta.fields);
 
-            // Update column mappings with backend suggestions if available
-            if (suggestedMappings && suggestedMappings.length > 0) {
-                setColumnMappings(suggestedMappings.map((mapping: any) => ({
-                    columnName: mapping.columnName,
-                    type: mapping.mappedType,
-                    samples: mapping.samples || []
-                })));
-            } else {
-                // Fall back to client-side mapping logic
-                handleClientSideMapping(file);
-            }
-
-            setValidRowsCount(response.data.totalRows || parsedData.length);
-            setUploadedFile(prev => prev ? { ...prev, processed: true } : null);
-            setShowColumnMapping(true);
-            setValidationComplete(true);
+                    // Update UI state
+                    setUploadedFile(prev => prev ? { ...prev, processed: true } : null);
+                    setShowColumnMapping(true);
+                    setValidationComplete(true);
+                    setIsLoading(false);
+                },
+                error: (error) => {
+                    console.error('Error parsing CSV:', error);
+                    toast({
+                        variant: "destructive",
+                        title: "Error parsing CSV",
+                        description: error.message,
+                    });
+                    setUploadedFile(null);
+                    setIsLoading(false);
+                }
+            });
 
         } catch (error) {
-            console.error('Error getting mapping suggestions:', error);
-
-            // Fall back to client-side mapping on error
-            handleClientSideMapping(file);
-
+            console.error('Error processing file:', error);
             toast({
                 variant: "destructive",
-                title: "Using local mapping",
-                description: "Couldn't get mapping suggestions from server. Using local parsing instead."
+                title: "Error processing file",
+                description: error instanceof Error ? error.message : "An unknown error occurred"
             });
-        } finally {
             setIsLoading(false);
         }
     };
@@ -542,6 +540,22 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
                 setParsedCsvData(parsedData);
 
                 if (results.meta.fields && results.meta.fields.length > 0) {
+                    // Keep track of used mapping types to avoid duplicates
+                    const usedTypes = new Set<string>();
+
+                    const assignType = (suggestedType: string) => {
+                        // These types can be used multiple times
+                        if (suggestedType === 'custom-variable' || suggestedType === 'do-not-import') {
+                            return suggestedType;
+                        }
+                        // For other types, ensure they are used only once
+                        if (!usedTypes.has(suggestedType)) {
+                            usedTypes.add(suggestedType);
+                            return suggestedType;
+                        }
+                        return 'do-not-import'; // Fallback for duplicates
+                    };
+
                     // Improved header matching logic with more patterns
                     const newColumnMappings: ColumnMapping[] = results.meta.fields.map(header => {
                         let type = 'do-not-import';
@@ -556,27 +570,27 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
                             headerLower === 'url' || // Consider plain "url" as likely LinkedIn
                             headerLower === 'link' // Consider plain "link" as likely LinkedIn
                         ) {
-                            type = 'linkedin-url';
+                            type = assignType('linkedin-url');
                         }
                         // Other existing mapping logic
                         else if (headerLower.includes('first') || headerLower.includes('fname')) {
-                            type = 'first-name';
+                            type = assignType('first-name');
                         } else if (headerLower.includes('last') || headerLower.includes('lname')) {
-                            type = 'last-name';
+                            type = assignType('last-name');
                         } else if (headerLower.includes('headline')) {
-                            type = 'head-line';
+                            type = assignType('head-line');
                         } else if (headerLower.includes('title') || headerLower.includes('role') || headerLower.includes('position')) {
-                            type = 'job-title';
+                            type = assignType('job-title');
                         } else if (headerLower.includes('location') || headerLower.includes('city') || headerLower.includes('country')) {
-                            type = 'location';
+                            type = assignType('location');
                         } else if (headerLower.includes('company') || headerLower.includes('employer') || headerLower.includes('organization')) {
-                            type = 'company';
+                            type = assignType('company');
                         } else if (headerLower.includes('email')) {
-                            type = 'email';
+                            type = assignType('email');
                         } else if (headerLower.includes('tag')) {
-                            type = 'tags';
+                            type = assignType('tags');
                         } else if (headerLower.includes('company') && (headerLower.includes('url')) && (!headerLower.includes('linkedin'))) {
-                            type = 'company-url';
+                            type = assignType('company-url');
                         }
                         // Get sample data and look for LinkedIn-like patterns in the data
                         const samples = parsedData.slice(0, 4).map(row => row[header] || '').filter(Boolean);
@@ -585,7 +599,7 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
                         if (type === 'do-not-import' && samples.length > 0) {
                             const linkedInPattern = /linkedin\.com\/in\//i;
                             if (samples.some(sample => linkedInPattern.test(sample))) {
-                                type = 'linkedin-url';
+                                type = assignType('linkedin-url');
                             }
                         }
 
@@ -653,18 +667,18 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
             }));
         }
 
-        // If user is trying to set a column to linkedin-url
-        if (newType === 'linkedin-url') {
-            // Check if any other column is already mapped as linkedin-url
-            const existingLinkedInUrlIndex = columnMappings.findIndex(
-                (col, idx) => col.type === 'linkedin-url' && idx !== columnIndex
+        // Allow 'do-not-import' and 'custom-variable' to be selected multiple times
+        if (newType !== 'do-not-import' && newType !== 'custom-variable') {
+            // Check if the new type is already used by another column
+            const existingMappingIndex = columnMappings.findIndex(
+                (col, idx) => col.type === newType && idx !== columnIndex
             );
 
-            if (existingLinkedInUrlIndex !== -1) {
-                // Show error toast if another column is already mapped as linkedin-url
+            if (existingMappingIndex !== -1) {
+                // Show an error toast
                 toast({
-                    title: "LinkedIn URL already mapped",
-                    description: `Column "${columnMappings[existingLinkedInUrlIndex].columnName}" is already mapped as LinkedIn URL. Only one column can be used for LinkedIn profiles.`,
+                    title: "Mapping type already in use",
+                    description: `The type "${typeOptions.find(t => t.value === newType)?.label || newType}" is already mapped to the "${columnMappings[existingMappingIndex].columnName}" column. Each type can only be used once.`,
                     variant: "destructive",
                 });
                 return; // Prevent the change
@@ -689,6 +703,9 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
 
     // Update the continueAfterVerification function
     const continueAfterVerification = async () => {
+
+        console.log("Continuing after verification with results:", verificationResults);
+        console.log("Parsed CSV data sample:", parsedCsvData);
         if (!parsedCsvData.length || !verificationResults) {
             toast({
                 variant: "destructive",
@@ -744,12 +761,14 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
 
             // Filter out rows with invalid LinkedIn URLs
             const filteredData = parsedCsvData.filter((row, index) => !invalidRowIndexes.has(index));
+            console.log('The filtered data:', filteredData);
 
             console.log(`After filtering: ${filteredData.length} valid leads remaining`);
 
             // IMPORTANT: Store the filtered data for use by handleUploadAll
             // Use this approach to completely replace parsedCsvData with filteredData
             setParsedCsvData(filteredData);
+            setFilteringComplete(true);
 
             // Update validation counts
             setValidRowsCount(filteredData.length);
@@ -769,8 +788,7 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
                 description: `Removed ${invalidRowIndexes.size} leads with invalid LinkedIn URLs. Continuing with ${filteredData.length} valid leads.`,
             });
 
-            // Now call handleUploadAll - this will use the filtered data because we updated parsedCsvData
-            handleUploadAll();
+
         } catch (error) {
             console.error('Error filtering invalid URLs:', error);
             toast({
@@ -780,6 +798,14 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
             });
         }
     };
+
+    // Add effect to run after state update
+    useEffect(() => {
+        if (filteringComplete) {
+            handleUploadAll();
+            setFilteringComplete(false);
+        }
+    }, [filteringComplete]);
 
     // Process the data according to column mappings and update the store
     const handleUploadAll = async () => {
@@ -882,6 +908,8 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
                 }
             };
 
+            console.log('The parsedCsv data just before sending to backend: ', parsedCsvData)
+
             // IMPORTANT: Here we're sending parsedCsvData which has been filtered if verification happened
             const response = await processLeadsWithMapping(uploadedFile?.fileObject as File, mappingInfo, parsedCsvData);
 
@@ -893,7 +921,7 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
             const processedData = response.data.processedLeads || [];
 
             // Filter out invalid LinkedIn URLs from the processed data
-            const linkedinProfileRegex = /^(?:https?:\/\/)?(?:www\.)?linkedin\.(?:com|co\.\w{2}|[a-z]{2})\/in\/.+$/i;
+            const linkedinProfileRegex = /^(?:https?:\/\/)?www\.linkedin\.(?:com|co\.\w{2}|[a-z]{2,3})\/(?:in|profile)\/[\w\-\.%+]+\/?(?:[?#].*)?$/i;
             const linkedinCompanyRegex = /^(?:https?:\/\/)?(?:www\.)?linkedin\.(?:com|co\.\w{2}|[a-z]{2})\/company\/.+$/i;
 
             const originalCount = processedData.length;
@@ -901,11 +929,11 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
                 // If there's no LinkedIn URL, keep the lead
                 if (!item.linkedinUrl) return true;
 
-                // Check if the URL matches either regex pattern
-                const isValidProfile = linkedinProfileRegex.test(item.linkedinUrl);
-                const isValidCompany = linkedinCompanyRegex.test(item.linkedinUrl);
-
-                return isValidProfile || isValidCompany;
+                console.log(`Validating LinkedIn URL: ${item.linkedinUrl} , the validation result is: `, isValidLinkedInProfileUrl(item.linkedinUrl) ||
+                    isValidCompanyLinkedInProfileUrl(item.linkedinUrl));
+                // Use the library to validate the LinkedIn URL
+                return isValidLinkedInProfileUrl(item.linkedinUrl) ||
+                    isValidCompanyLinkedInProfileUrl(item.linkedinUrl);
             });
 
             console.log(`Filtered ${originalCount - filteredProcessedData.length} leads with invalid LinkedIn URLs`);
@@ -1187,10 +1215,27 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
     // Download sample CSV template
     const handleDownloadSample = () => {
         const sampleData = [
-            { firstName: 'John', lastName: 'Doe', linkedinUrl: 'https://linkedin.com/in/johndoe', email: 'john@example.com', company: 'Acme Inc.', position: 'CEO' },
-            { firstName: 'Jane', lastName: 'Smith', linkedinUrl: 'https://linkedin.com/in/janesmith', email: 'jane@example.com', company: 'Tech Corp', position: 'CTO' },
+            { firstName: 'Joseph', lastName: 'Hoban', linkedinUrl: 'https://www.linkedin.com/in/joseph-hoban-6522a4', email: 'joseph@redseal.com', company: 'RedSeal, Inc.', position: 'Advisor to Chief Executive Officer', location: 'Philadelphia, Pennsylvania, United States', industry: 'cybersecurity', keyStrength: 'cybersecurity sales leadership', experience: '15+ years' },
+            { firstName: 'Martin', lastName: 'Denard', linkedinUrl: 'https://www.linkedin.com/in/ACoAAA4I7-0BpD0uL_CiYVrSd2iX0fEDzP7Pvi0', email: 'martin@tenica.com', company: 'TENICA Global Solutions', position: 'Assistant Project Manager', location: 'Washington DC-Baltimore Area', industry: 'IT infrastructure', keyStrength: 'incident response expertise', experience: '2+ years' },
+            { firstName: 'David', lastName: 'Denick', linkedinUrl: 'https://www.linkedin.com/in/david-denick-5aa633b2', email: 'david@accessnewswire.com', company: 'ACCESS Newswire', position: 'Client Success Manager', location: 'Winter Garden, Florida, United States', industry: 'communications', keyStrength: 'relationship-driven results', experience: '10+ years' },
+            { firstName: 'Al', lastName: 'Coronado', linkedinUrl: 'https://www.linkedin.com/in/al-coronado-3708b94', email: 'al@athena.com', company: 'ATHENA Consulting', position: 'Channel Partner', location: 'Irvine, California, United States', industry: 'consulting services', keyStrength: 'consultative selling approach', experience: '12+ years' },
+            { firstName: 'Matt', lastName: 'Hudson', linkedinUrl: 'https://www.linkedin.com/in/matthudson1076', email: 'matt@layr.com', company: 'Layr', position: 'Senior Director of Sales', location: 'Austin, Texas Metropolitan Area', industry: 'team development', keyStrength: 'team culture building', experience: '8+ years' },
+            { firstName: 'John', lastName: 'Peternel', linkedinUrl: 'https://www.linkedin.com/in/ACwAAAE7IzcBOr5VAisTaURubVdFvu1TwVMpRGQ', email: 'john@creativesecurity.com', company: 'Creative Security Company', position: 'Sales Manager', location: 'Union City, California, United States', industry: 'security solutions', keyStrength: 'diverse industry experience', experience: '25+ years' },
+            { firstName: 'Teddy', lastName: 'Gorman', linkedinUrl: 'https://www.linkedin.com/in/teddygorman', email: 'teddy@aircontrol.com', company: 'AIR Control Concepts', position: 'Aftermarket Parts Regional Manager', location: 'Memphis Metropolitan Area', industry: 'aftermarket parts', keyStrength: 'performance-driven leadership', experience: '25+ years' },
+            { firstName: 'Rolf', lastName: 'Herrmann', linkedinUrl: 'https://www.linkedin.com/in/ACwAAAKRGs8BU0NZdJgGDtDdH-R6NCEc9YJEKoE', email: 'rolf@schneeberger.com', company: 'J. Schneeberger Corp.', position: 'General Manager', location: 'Elgin, Illinois, United States', industry: 'industrial machinery', keyStrength: 'international machinery distribution', experience: '15+ years' },
+            { firstName: 'Salim', lastName: 'Fedel', linkedinUrl: 'https://www.linkedin.com/in/salim-fedel-5652b21', email: 'salim@algeriaventure.com', company: 'Algeria Venture', position: 'Advisor to Startups', location: 'Palo Alto, California, United States', industry: 'renewable energy', keyStrength: 'renewable technology innovation', experience: '20+ years' },
+            { firstName: 'Jaimine', lastName: 'Johnson', linkedinUrl: 'https://www.linkedin.com/in/jaimineljohnson', email: 'jaimine@equity.com', company: 'Equity Commercial Real Estate Solutions', position: 'Managing Director, Brokerage', location: 'Columbus, Ohio Metropolitan Area', industry: 'commercial real estate', keyStrength: 'healthcare real estate expertise', experience: '20+ years' },
+            { firstName: 'John', lastName: 'Tremble', linkedinUrl: 'https://www.linkedin.com/in/ACoAAAJHxlwBVm1ydZ84-Q3r1idypHJEh7asskQ', email: 'john@windowdoorware.com', company: 'Window & Door Ware', position: 'President and Senior Sales Representative', location: 'Coeur d\'Alene, Idaho, United States', industry: 'building materials', keyStrength: 'energy-efficient building solutions', experience: '15+ years' },
+            { firstName: 'Tony', lastName: 'Colalillo', linkedinUrl: 'https://www.linkedin.com/in/tony-colalillo', email: 'tony@sensapure.com', company: 'Sensapure Flavors', position: 'Senior Vice President of Sales & Marketing', location: 'South Jordan, Utah, United States', industry: 'specialty chemicals', keyStrength: 'specialty chemical market knowledge', experience: '26+ years' },
+            { firstName: 'David', lastName: 'Champmartin', linkedinUrl: 'https://www.linkedin.com/in/ACoAACgHK0UBpvVhUi2dTCW84ofMns8urCGJB3k', email: 'david@eraconsulting.com', company: 'Era Consulting Group', position: 'US. Sales Development Manager', location: 'Austin, Texas, United States', industry: 'digital transformation', keyStrength: 'digital transformation consulting', experience: '25+ years' },
+            { firstName: 'Wayne', lastName: 'Schoeneberg', linkedinUrl: 'https://www.linkedin.com/in/wayne-schoeneberg-6b069818', email: 'wayne@lg.com', company: 'LG Electronics HVAC Solutions', position: 'Senior Regional Sales Manager', location: 'San Diego County, California, United States', industry: 'HVAC solutions', keyStrength: 'strategic partnership development', experience: '15+ years' },
+            { firstName: 'Dustin', lastName: 'Suntheimer', linkedinUrl: 'https://www.linkedin.com/in/ACoAAAIj8IYBqhgSWaAfHXNXq6_izq1ibN6bT-E', email: 'dustin@gopath.com', company: 'GoPath Diagnostics', position: 'Director of Commercial Operations', location: 'Detroit Metropolitan Area', industry: 'diagnostics', keyStrength: 'diagnostic services expansion', experience: '3+ years' },
+            { firstName: 'Alicia', lastName: 'Stein González', linkedinUrl: 'https://www.linkedin.com/in/ACoAADE2uNIBiD0vz72Ut-aBV7CAHFrpYI1qp1g', email: 'alicia@wobi.com', company: 'WOBI', position: 'Sales Manager', location: 'Greater Madrid Metropolitan Area', industry: 'international business', keyStrength: 'international market development', experience: '5+ years' },
+            { firstName: 'Lorenzo', lastName: 'D\'Avolio', linkedinUrl: 'https://www.linkedin.com/in/lorenzodavolio', email: 'lorenzo@trik.com', company: 'TRI-K Industries', position: 'Sales Account Manager West Coast', location: 'United States', industry: 'personal care', keyStrength: 'personal care industry innovation', experience: '20+ years' },
+            { firstName: 'Jim', lastName: 'Kaldem', linkedinUrl: 'https://www.linkedin.com/in/jim-kaldem-1108991', email: 'jim@nelsonmiller.com', company: 'Nelson-Miller, Inc.', position: 'President', location: 'Fullerton, California, United States', industry: 'manufacturing', keyStrength: 'lean implementation expertise', experience: '10+ years' },
+            { firstName: 'Ryllee', lastName: 'Tettleton', linkedinUrl: 'https://www.linkedin.com/in/rylleetettleton', email: 'ryllee@petrosmith.com', company: 'Petrosmith', position: 'Executive Vice President of Sales & Business Development', location: 'Tomball, Texas, United States', industry: 'energy services', keyStrength: 'strategic client relationship building', experience: '12+ years' },
+            { firstName: 'Rick', lastName: 'Martin', linkedinUrl: 'https://www.linkedin.com/in/ACoAAABkk9wBVRvmm9SSBBr0WO1kg8Eo3zDJBo0', email: 'rick@rzero.com', company: 'R-Zero', position: 'Senior Sales Director', location: 'Nolensville, Tennessee, United States', industry: 'building technology', keyStrength: 'sensor technology integration', experience: '10+ years' }
         ];
-
         const csv = Papa.unparse(sampleData);
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
@@ -1333,7 +1378,7 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
                 {/* Verification Controls */}
                 <div className="mt-8 space-y-6">
                     {/* Check for duplicates section */}
-                    <div>
+                    {/* <div>
                         <div className="flex items-center space-x-3 mb-4">
                             <span className="text-sm font-medium text-gray-900">Check for duplicates across all</span>
                             <div className="flex items-center space-x-4">
@@ -1369,7 +1414,7 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </div> */}
 
                     {/* Verify leads section */}
                     {/* <div className="flex items-center space-x-3 mb-6">
@@ -1716,7 +1761,5 @@ const getRandomProfileImage = () => {
     const randomIndex = Math.floor(Math.random() * totalImages) + 1;
     return `/profileImages/user${randomIndex}.png`;
 };
-
-// Add this function near your other handler functions
 
 
