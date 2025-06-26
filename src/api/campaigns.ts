@@ -85,7 +85,7 @@ export const getCampaignInsights = async (campaignId: string): Promise<GetCampai
   );
 };
 
-// Fix the convertDelayToMs function to handle both string and number inputs
+// Update the convertDelayToMs function to handle minutes as well
 const convertDelayToMs = (delay: string | number): number => {
   // If delay is a number, assume it's already in seconds and convert to milliseconds
   if (typeof delay === 'number') {
@@ -99,16 +99,19 @@ const convertDelayToMs = (delay: string | number): number => {
       return Number(delay) * 1000;
     }
     
-    // Try the original pattern
-    const match = delay.match(/(\d+)days(\d+)hours/);
+    // Try to match a pattern with days, hours, and minutes
+    // This matches formats like "2days3hours15minutes" or similar variations
+    const match = delay.match(/(?:(\d+)days)?(?:(\d+)hours)?(?:(\d+)minutes)?/);
     if (match) {
-      const days = parseInt(match[1], 10);
-      const hours = parseInt(match[2], 10);
+      const days = parseInt(match[1] || '0', 10);
+      const hours = parseInt(match[2] || '0', 10);
+      const minutes = parseInt(match[3] || '0', 10);
       
-      const MS_PER_HOUR = 3600000; // 1 hour = 3600000 ms
+      const MS_PER_MINUTE = 60000;    // 1 minute = 60000 ms
+      const MS_PER_HOUR = 3600000;    // 1 hour = 3600000 ms
       const MS_PER_DAY = MS_PER_HOUR * 24;
       
-      return days * MS_PER_DAY + hours * MS_PER_HOUR;
+      return days * MS_PER_DAY + hours * MS_PER_HOUR + minutes * MS_PER_MINUTE;
     }
   }
   
@@ -147,7 +150,8 @@ export const postCampaign = async (campaignData: Campaign): Promise<GenericApiRe
         parentID: config.parentID,
         action: config.action,
         data: { 
-          delay: typeof config.data.delay === 'number' ? config.data.delay * 1000 : 0, // Convert seconds to ms
+          // Convert seconds to ms, ensuring we handle our delay values which include days/hours/minutes
+          delay: typeof config.data.delay === 'number' ? config.data.delay * 1000 : 0,
           text: config.data.text || "",
           // Include excludeConnected flag if it exists
           ...(config.data.excludeConnected !== undefined ? { excludeConnected: config.data.excludeConnected } : {})
