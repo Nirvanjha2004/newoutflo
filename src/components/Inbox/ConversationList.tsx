@@ -258,7 +258,31 @@ export const ConversationList = ({
       });
     }
 
-    return result;
+    // DEDUPLICATE CONVERSATIONS BY URN
+    // This creates a Map where the key is the conversation URN
+    // For conversations with the same URN, we prefer the one with messages
+    const deduplicatedConversations = Array.from(
+      result.reduce((map, conversation) => {
+        if (!conversation.urn) return map;
+        
+        // If we already have this conversation URN
+        if (map.has(conversation.urn)) {
+          const existing = map.get(conversation.urn);
+          
+          // Keep the one with messages, or with more messages
+          if (conversation.messages?.length > (existing.messages?.length || 0)) {
+            map.set(conversation.urn, conversation);
+          }
+        } else {
+          map.set(conversation.urn, conversation);
+        }
+        
+        return map;
+      }, new Map())
+      // Extract just the values from the Map
+    ).map(([_, conversation]) => conversation);
+
+    return deduplicatedConversations;
   }, [
     conversationsData,
     filteredConversationsBySender,
