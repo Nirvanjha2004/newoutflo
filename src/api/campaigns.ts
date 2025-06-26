@@ -121,10 +121,6 @@ const convertDelayToMs = (delay: string | number): number => {
   return 0;
 };
   
-  // Default value if parsing fails
-  console.warn('Failed to parse delay value:', delay);
-  return 0;
-};
 
 export const postCampaign = async (campaignData: Campaign): Promise<GenericApiResponse> => {
   const formData = new FormData();
