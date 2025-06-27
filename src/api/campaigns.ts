@@ -203,9 +203,7 @@ export const postCampaign = async (campaignData: Campaign): Promise<GenericApiRe
   sunday: { startTime: 32400, endTime: 61200, enabled: false }
 };
 
-  formData.append("operationalTimes", JSON.stringify({
-    operationalTimes
-  }));
+  formData.append("operationalTimes", JSON.stringify(operationalTimes));
 
 
 

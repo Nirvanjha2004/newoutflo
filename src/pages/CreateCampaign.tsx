@@ -13,6 +13,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import DashboardLayout from '@/components/DashboardLayout';
 import { getCampaignById } from '@/api/campaigns';
 import { useCampaignStore } from '@/api/store/campaignStore';
+import { convertToSecondsFormat } from '@/utils/timeUtils';
 
 // Campaign creation content component
 const CreateCampaignContent = () => {
@@ -134,28 +135,31 @@ const CreateCampaignContent = () => {
 
     setIsSubmitting(true);
     const leadListId = campaignStoreState.campaign.leads.leadListId;
-    
-    // Get operational times from the store
-    const operationalTimes = campaignStoreState.campaign.operationalTimes;
-    
-    console.log("Operational Times from store:", operationalTimes);
-    // If operationalTimes is missing, create a default structure based on working hours
     const defaultOperationalTimes = {
       monday: { startTime: 32400, endTime: 61200, enabled: true },
       tuesday: { startTime: 32400, endTime: 61200, enabled: true },
       wednesday: { startTime: 32400, endTime: 61200, enabled: true },
       thursday: { startTime: 32400, endTime: 61200, enabled: true },
       friday: { startTime: 32400, endTime: 61200, enabled: true },
-      saturday: { startTime: 32400, endTime: 61200, enabled: true },
-      sunday: { startTime: 32400, endTime: 61200, enabled: true }
+      saturday: { startTime: 32400, endTime: 61200, enabled: false },
+      sunday: { startTime: 32400, endTime: 61200, enabled: false }
     };
+
+    // Get operational times from the store and ensure fallback if missing/empty
+    const rawWorkingHours = campaignStoreState.campaign.workingHours;
+    const operationalTimes =
+      rawWorkingHours && Object.keys(rawWorkingHours).length > 0
+        ? convertToSecondsFormat(rawWorkingHours)
+        : defaultOperationalTimes;
+
+    console.log("Operational Times from store:", operationalTimes);
 
     // Update accountIDs based on selected senderAccounts
     const updatedCampaignData = {
       ...campaignData,
       accountIDs: campaignData.senderAccounts?.map(account => account.id) || [],
       leadListId: leadListId || campaignData.leadListId || null,
-      operationalTimes: operationalTimes , // Add operational times from store
+      operationalTimes, // Always defined
       timeZone: campaignData.timeZone  // Default timezone
     };
 
