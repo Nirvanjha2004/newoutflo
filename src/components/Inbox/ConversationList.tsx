@@ -6,6 +6,7 @@ import { useConversationsQuery } from "@/hooks/useInboxQueries";
 import { useAccountsQuery } from "@/hooks/useAccountQueries";
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { BadgeCheck, ChevronDown, Plus } from "lucide-react"; // If using lucide-react
+import LinkedInConnectionModal from "@/components/LinkedinConnectionModal";
 
 
 interface ConversationListProps {
@@ -92,6 +93,7 @@ export const ConversationList = ({
   const [selectedSenderAccounts, setSelectedSenderAccounts] = useState<Record<string, boolean>>({});
   const [isSenderFilterOpen, setIsSenderFilterOpen] = useState(false);
   const senderFilterRef = useRef<HTMLDivElement>(null);
+  const [isConnectionModalOpen, setIsConnectionModalOpen] = useState(false);
 
   const { data: conversationsData = [], isLoading: loading, error } = useConversationsQuery(
     isPendingFilter,
@@ -453,15 +455,18 @@ export const ConversationList = ({
 
         <Button
           variant="default"
-          onClick={() => {
-            // Navigate to accounts page or open connect account modal
-            window.location.href = '/settings/accounts';
-          }}
+          onClick={() => setIsConnectionModalOpen(true)} // Changed from navigation to modal open
           className="bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm flex items-center gap-2"
         >
           <Plus size={16} />
           Connect LinkedIn Account
         </Button>
+
+        {/* Add the modal component */}
+        <LinkedInConnectionModal 
+          isOpen={isConnectionModalOpen}
+          onClose={() => setIsConnectionModalOpen(false)}
+        />
       </div>
     );
   }
