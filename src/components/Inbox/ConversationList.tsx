@@ -376,76 +376,61 @@ export const ConversationList = ({
     );
   };
 
-  if (loading) {
+  // First check if accounts exist
+  if (!appUserAccountsData || appUserAccountsData.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="text-gray-500">Loading conversations...</div>
-      </div>
-    );
-  }
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+        <div className="w-64 h-64 mb-6">
+          {/* LinkedIn Accounts Disconnected Infographic */}
+          <svg viewBox="0 0 400 300" className="w-full h-full">
+            {/* Background Circle */}
+            <circle cx="200" cy="150" r="120" fill="#f0f4ff" />
 
-  // Replace your existing error handling with this proper error check
-  if (error) {
-    console.log("Error details:", error);
+            {/* User Profile Icon */}
+            <g className="profile-icon" opacity="0.8">
+              <circle cx="150" cy="130" r="35" fill="#e0e7ff" stroke="#c7d2fe" strokeWidth="2" />
+              <circle cx="150" cy="115" r="12" fill="#818cf8" />
+              <rect x="130" y="132" width="40" height="20" rx="10" fill="#818cf8" />
+            </g>
 
-    // Check for CLIENT_ERROR or if no accounts are connected
-    if ((error.message === "CLIENT_ERROR" ||
-      (typeof error === 'object' && error.error === "No accounts found")) ||
-      appUserAccountsData.length === 0) {
+            {/* LinkedIn Icon - Added more margin from left side */}
+            <g className="linkedin-icon animate-pulse">
+              <rect x="265" y="105" width="60" height="60" rx="8" fill="#4f46e5" />
+              <text
+                x="290"
+                y="145"
+                fontFamily="Arial"
+                fontSize="40"
+                fontWeight="bold"
+                fill="white"
+                textAnchor="middle"
+              >
+                in
+              </text>
+            </g>
 
-      return (
-        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-          <div className="w-64 h-64 mb-6">
-            {/* LinkedIn Accounts Disconnected Infographic */}
-            <svg viewBox="0 0 400 300" className="w-full h-full">
-              {/* Background Circle */}
-              <circle cx="200" cy="150" r="120" fill="#f0f4ff" />
+            {/* Broken Connection Line */}
+            <path
+              d="M190 130 L220 130 M235 130 L260 130"
+              stroke="#d1d5db"
+              strokeWidth="4"
+              strokeLinecap="round"
+              strokeDasharray="5,5"
+            />
 
-              {/* User Profile Icon */}
-              <g className="profile-icon" opacity="0.8">
-                <circle cx="150" cy="130" r="35" fill="#e0e7ff" stroke="#c7d2fe" strokeWidth="2" />
-                <circle cx="150" cy="115" r="12" fill="#818cf8" />
-                <rect x="130" y="132" width="40" height="20" rx="10" fill="#818cf8" />
-              </g>
-
-              {/* LinkedIn Icon - Added more margin from left side */}
-              <g className="linkedin-icon animate-pulse">
-                <rect x="265" y="105" width="60" height="60" rx="8" fill="#4f46e5" />
-                <text
-                  x="290"
-                  y="145"
-                  fontFamily="Arial"
-                  fontSize="40"
-                  fontWeight="bold"
-                  fill="white"
-                  textAnchor="middle"
-                >
-                  in
-                </text>
-              </g>
-
-              {/* Broken Connection Line */}
+            {/* Red X Mark - Properly centered */}
+            <g className="x-mark">
+              <circle cx="225" cy="130" r="17" fill="#fee2e2" />
               <path
-                d="M190 130 L220 130 M235 130 L260 130"
-                stroke="#d1d5db"
+                d="M215 120 L235 140 M235 120 L215 140"
+                stroke="#ef4444"
                 strokeWidth="4"
                 strokeLinecap="round"
-                strokeDasharray="5,5"
               />
-
-              {/* Red X Mark - Properly centered */}
-              <g className="x-mark">
-                <circle cx="225" cy="130" r="17" fill="#fee2e2" />
-                <path
-                  d="M215 120 L235 140 M235 120 L215 140"
-                  stroke="#ef4444"
-                  strokeWidth="4"
-                  strokeLinecap="round"
-                />
-              </g>
-              {/* Animation Styles */}
-              <style>
-                {`
+            </g>
+            {/* Animation Styles */}
+            <style>
+              {`
           @keyframes pulse {
             0% { opacity: 0.7; }
             50% { opacity: 1; }
@@ -455,34 +440,43 @@ export const ConversationList = ({
             animation: pulse 2s infinite;
           }
         `}
-              </style>
-            </svg>
-          </div>
-
-          <h3 className="text-xl font-bold text-gray-900 mb-2">
-            No LinkedIn Accounts Connected
-          </h3>
-          <p className="text-gray-500 mb-6 max-w-sm">
-            Connect a LinkedIn account to view and respond to your messages
-          </p>
-
-          <Button
-            variant="default"
-            onClick={() => {
-              // Navigate to accounts page or open connect account modal
-              window.location.href = '/settings/accounts';
-            }}
-            className="bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm flex items-center gap-2"
-          >
-            <Plus size={16} />
-            Connect LinkedIn Account
-          </Button>
+            </style>
+          </svg>
         </div>
 
-      );
-    }
+        <h3 className="text-xl font-bold text-gray-900 mb-2">
+          No LinkedIn Accounts Connected
+        </h3>
+        <p className="text-gray-500 mb-6 max-w-sm">
+          Connect a LinkedIn account to view and respond to your messages
+        </p>
 
-    // Handle other types of errors with the default error message
+        <Button
+          variant="default"
+          onClick={() => {
+            // Navigate to accounts page or open connect account modal
+            window.location.href = '/settings/accounts';
+          }}
+          className="bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm flex items-center gap-2"
+        >
+          <Plus size={16} />
+          Connect LinkedIn Account
+        </Button>
+      </div>
+    );
+  }
+
+  // Only show loading state if we have accounts but conversations are still loading
+  if (loading) {
+    return (
+      <div className="flex-1 flex items-center justify-center p-8">
+        <div className="text-gray-500">Loading conversations...</div>
+      </div>
+    );
+  }
+
+  // Handle other errors
+  if (error) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="text-red-500">Error loading conversations</div>
