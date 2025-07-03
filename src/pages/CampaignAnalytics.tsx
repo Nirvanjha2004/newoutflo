@@ -73,9 +73,7 @@ interface CampaignAnalyticsProps {
     responses: number
   };
   campaignData?: {
-    localOperationalTimes?: {
-      timezone?: string;
-    }
+    timeZone : string;
   };
 }
 
@@ -89,7 +87,7 @@ const CampaignAnalytics = ({
 }: CampaignAnalyticsProps) => {
   // Extract timezone from campaign data or use browser default
   const userTimezone = useMemo(() => {
-    return campaignData?.localOperationalTimes?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return campaignData?.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone;
   }, [campaignData]);
 
 
@@ -173,7 +171,7 @@ const CampaignAnalytics = ({
       case LeadStatus.CONNECTION_RECEIVED:
         return 'connectionReceived';
       case LeadStatus.INVITATION_EXISTS:
-        return 'invitationSent';
+        return 'invitationAlreadySent';
       case LeadStatus.FOLLOW_UP:
         return 'followUp';
       case LeadStatus.SUCCESS:
@@ -206,7 +204,7 @@ const CampaignAnalytics = ({
     if (statusLower.includes('connection request sent') || statusLower.includes('connection sent')) return 'connectionSent';
     if (statusLower.includes('connection accepted')) return 'connected';
     if (statusLower.includes('connection received')) return 'connectionReceived';
-    if (statusLower.includes('invitation')) return 'invitationSent';
+    if (statusLower.includes('invitation')) return 'invitationAlreadySent';
     if (statusLower.includes('follow-up')) return 'followUp';
     if (statusLower.includes('success')) return 'success';
     if (statusLower.includes('lead active')) return 'active';
@@ -252,7 +250,7 @@ const CampaignAnalytics = ({
           }
         }
 
-        let mappedStatus = mapLeadStatus(lead.status);
+        const mappedStatus = mapLeadStatus(lead.status);
         const accountName = getAccountName(lead.accountId);
 
         return {
@@ -317,7 +315,7 @@ const CampaignAnalytics = ({
 
   // Update the filteredLeads useMemo to filter by multiple accounts
   const filteredLeads = useMemo(() => {
-    let filtered = allLeads.filter(lead => {
+    const filtered = allLeads.filter(lead => {
       // Search filter - check both name and URL
       const matchesSearch =
         (lead.name && lead.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
@@ -349,8 +347,8 @@ const CampaignAnalytics = ({
         return { label: 'Connected', className: 'bg-green-100 text-green-700 border-green-200' };
       case 'connectionReceived':
         return { label: 'Connection Received', className: 'bg-indigo-100 text-indigo-700 border-indigo-200' };
-      case 'invitationSent':
-        return { label: 'Invitation Sent', className: 'bg-blue-100 text-blue-700 border-blue-200' };
+      case 'invitationAlreadySent':
+        return { label: 'Invitation Already Sent', className: 'bg-blue-100 text-blue-700 border-blue-200' };
       case 'followUp':
         return { label: 'Follow-Up', className: 'bg-amber-100 text-amber-700 border-amber-200' };
       case 'success':
@@ -417,7 +415,7 @@ const CampaignAnalytics = ({
       alreadyConnected: allLeads.filter(lead => lead.status === 'alreadyConnected').length,
       connected: allLeads.filter(lead => lead.status === 'connected').length,
       connectionReceived: allLeads.filter(lead => lead.status === 'connectionReceived').length,
-      invitationSent: allLeads.filter(lead => lead.status === 'invitationSent').length,
+      invitationAlreadySent: allLeads.filter(lead => lead.status === 'invitationAlreadySent').length,
       followUp: allLeads.filter(lead => lead.status === 'followUp').length,
       success: allLeads.filter(lead => lead.status === 'success').length,
       paused: allLeads.filter(lead => lead.status === 'paused').length,
@@ -440,7 +438,7 @@ const CampaignAnalytics = ({
       alreadyConnected: 'Already Connected',
       connected: 'Connected',
       //   connectionReceived: 'Connection Received',
-      invitationSent: 'Invitation Sent',
+      invitationAlreadySent: 'Invitation Already Sent',
       followUp: 'Follow-Up',
       success: 'Successfully Engaged',
       //   paused: 'Paused',

@@ -83,11 +83,11 @@ export const mapBackendCampaignToFrontend = async (backendCampaign: any): Promis
     leads: backendCampaign.leads.data,
     senderAccounts: [], // Will be populated below
     accountIDs: backendCampaign.accountIDs?.map((id: string) => id) ?? [],
-    workflow: backendCampaign.configs ?? undefined,
-    localOperationalTimes: backendCampaign.localOperationalTimes ?? undefined,
+    workflow: backendCampaign.configs ?? undefined,  
     accountStatuses: backendCampaign.accountStatuses ?? {},
     leadListId: undefined,
     operationalTimes: backendCampaign.operationalTimes ?? undefined,
+    timeZone: backendCampaign.timeZone ,
   };
 
   // Process accounts using account information from various sources

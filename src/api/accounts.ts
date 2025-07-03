@@ -14,7 +14,7 @@ export const getAccounts = async () => {
           }
   
           // Check conversation fetch failures
-          if (account.convFetchedFailures && account.convFetchedFailures >= 3) {
+          if (account.convFetchedFailures && account.convFetchedFailures >= 15) {
             return {
               ...account,
               status: SyncState.INACTIVE
@@ -22,7 +22,7 @@ export const getAccounts = async () => {
           }
   
           // Check campaign failures
-          if (account.accountActions?.campaignFailures && account.accountActions.campaignFailures >= 3) {
+          if (account.accountActions?.campaignFailures && account.accountActions.campaignFailures >= 8) {
             return {
               ...account,
               status: SyncState.INACTIVE
@@ -37,6 +37,8 @@ export const getAccounts = async () => {
           data: updatedAccounts
         };
       }
+
+      console.log("The response from getAccounts is ", response);
       return response;
     });
 };

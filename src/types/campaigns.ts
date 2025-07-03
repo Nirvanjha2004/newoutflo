@@ -30,6 +30,7 @@ export type CampaignStep = {
 };
 
 export type CampaignWorkflow = {
+  excludeConnected: any;
   steps: CampaignStep[];
 };
 
@@ -63,6 +64,7 @@ export interface CampaignConfig {
   data: {
     delay: number;
     text: string;
+    excludeConnected: boolean;
   };
 }
 
@@ -88,11 +90,6 @@ export type Campaign = {
   //configs?: Config[]; // Present in backend
   operationalTimes?: OperationalTimes; // Present in backend
   workflow?: CampaignWorkflow; // Not in backend, so optional
-  timezone?: string; // Not in backend, so optional
-  localOperationalTimes?: {
-    startTime: number;
-    endTime: number;
-    timezone: string;
-  };
+  timeZone: string; // Not in backend, so optional
   accountStatuses?: any;
 };

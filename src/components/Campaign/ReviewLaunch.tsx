@@ -11,7 +11,8 @@ import { useCampaignStore } from '@/api/store/campaignStore/campaign';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { format } from 'date-fns';
 import { DateTime } from 'luxon';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
+
 
 
 
@@ -109,6 +110,7 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
   isSubmitting,
   viewMode = false
 }) => {
+  const { toast } = useToast()
   // Get campaign data from store - access BOTH parts of the store
   const storeData = useCampaignStore(state => ({
     campaign: state.campaign,
@@ -155,8 +157,8 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
       setWorkingHours(campaignData.workingHours);
     }
 
-    if (campaignData?.timezone) {
-      setTimezone(campaignData.timezone);
+    if (campaignData?.timeZone) {
+      setTimezone(campaignData.timeZone);
     }
 
     // In view mode, ensure all sections are open
@@ -377,11 +379,7 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
     updateCampaignData({ workingHours: updatedHours });
     setWorkingHours(updatedHours);
 
-    // Get the IANA timezone identifier from our mapping
-    const ianaZone = zoneMap[timezone] || 'Etc/UTC';
 
-    // Also convert all times to GMT for the store
-    convertAllTimesToGMT(updatedHours, ianaZone);
   };
 
   const addTimeSlot = (day: string) => {
@@ -415,9 +413,6 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
     updateCampaignData({ workingHours: newHours });
     setWorkingHours(newHours);
 
-    // Add this crucial line to convert all times to GMT for backend
-    const ianaZone = zoneMap[timezone] || 'Etc/UTC';
-    convertAllTimesToGMT(newHours, ianaZone);
   };
 
   const handleTimezoneChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -425,13 +420,8 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
 
     const newTimezone = e.target.value;
     setTimezone(newTimezone);
-    updateCampaignData({ timezone: newTimezone });
+    updateCampaignData({ timeZone: newTimezone });
 
-    // Get the IANA timezone identifier from our mapping
-    const ianaZone = zoneMap[newTimezone] || 'Etc/UTC';
-
-    // Convert all existing time slots to the new timezone and then to GMT
-    convertAllTimesToGMT(workingHours, ianaZone);
   };
 
   // Add this new function to handle time conversion
@@ -520,12 +510,6 @@ const ReviewLaunch: React.FC<ReviewLaunchProps> = ({
 
     // Only continue if we have leads and sender accounts and user confirmed
     if (confirmDetails && !isSubmitting) {
-      // Get the IANA timezone identifier
-      const ianaZone = zoneMap[timezone] || 'Etc/UTC';
-
-      // Convert times to GMT for final submission
-      convertAllTimesToGMT(workingHours, ianaZone);
-
       onSubmit();
     }
   };

@@ -74,16 +74,16 @@ const secondsToTimeFormatInTimezone = (seconds: number, userTimezone: string): s
     // Create a DateTime object in UTC with the seconds since midnight
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
-    
+
     // Create a DateTime object in UTC representing today at the specified time
     const utcTime = DateTime.utc().startOf('day').plus({ hours, minutes });
-    
+
     // Get the IANA timezone identifier from the mapping or default to UTC
     const ianaTimezone = zoneMap[userTimezone] || 'Etc/UTC';
-    
+
     // Convert from UTC to the user's timezone
     const localTime = utcTime.setZone(ianaTimezone);
-    
+
     // Format as HH:MM
     return localTime.toFormat('HH:mm');
 };
@@ -106,7 +106,7 @@ const transformCampaignForReview = (campaign: any, insights: any) => {
     };
 
     // Get the user's timezone
-    const userTimezone = campaign.localOperationalTimes?.timezone || "Target's Timezone (Recommended)";
+    const userTimezone = campaign?.timezone || "Asia/Kolkata";
     
     // Convert operational times to working hours format with timezone conversion
     let workingHours = defaultWorkingHours;
@@ -571,14 +571,41 @@ const CampaignViewContent = () => {
 
         switch (currentStep) {
             case 1:
+                // Check for deleted accounts
+                const hasDeletedAccounts = campaignData.senderAccounts?.some(account => account.status === 'deleted');
+
+                // Add check for inactive accounts
+                const hasInactiveAccounts = campaignData.senderAccounts?.some(account => account.status === 'inactive');
+
                 return (
-                    //console.log("Rendering LinkedIn Senders with accounts:", campaignData.senderAccounts),
                     <>
                         {hasDeletedAccounts && isViewMode && (
                             <Alert className="mb-6 bg-amber-50 border-amber-200">
                                 <AlertCircle className="w-4 h-4 mr-2 text-amber-600" />
                                 <AlertDescription className="text-amber-800">
                                     Some LinkedIn accounts used in this campaign are no longer available. They may have been deleted or disconnected.
+                                </AlertDescription>
+                            </Alert>
+                        )}
+
+                        {/* Add new alert for inactive accounts with account names */}
+                        {hasInactiveAccounts && isViewMode && (
+                            <Alert className="mb-6 bg-blue-50 border-blue-200">
+                                <AlertCircle className="w-4 h-4 mr-2 text-blue-600" />
+                                <AlertDescription className="text-blue-700">
+                                    <div>
+                                        <p className="mb-1">Some LinkedIn accounts in this campaign are currently inactive. Messages will not be sent from these accounts until they are reactivated:</p>
+                                        <ul className="list-disc pl-6 mt-1 space-y-0.5">
+                                            {campaignData.senderAccounts
+                                                ?.filter(account => account.status === 'inactive')
+                                                .map((account, index) => (
+                                                    <li key={index} className="text-sm">
+                                                        {account.firstName || `Account ${account.id}`}
+                                                    </li>
+                                                ))
+                                            }
+                                        </ul>
+                                    </div>
                                 </AlertDescription>
                             </Alert>
                         )}
@@ -596,7 +623,7 @@ const CampaignViewContent = () => {
                     : campaignData.leads?.data || [];
 
 
-                    console.log("Rendering ListOfLeads with leads:", leadsToPass, "and filter status:", leadFilterStatus);
+                console.log("Rendering ListOfLeads with leads:", leadsToPass, "and filter status:", leadFilterStatus);
                 return <CampaignAnalytics
                     campaignInsights={campaignInsights}
                     leadData={leadsToPass}

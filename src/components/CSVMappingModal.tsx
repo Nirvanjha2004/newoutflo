@@ -125,7 +125,7 @@ export function CSVMappingModal({ open, onClose, onBack, csvData, onUpload }: CS
             ))}
           </div>
 
-          {/* Options */}
+          {/* Options
           <div className="mt-8 space-y-4">
             <div className="text-lg font-medium text-white">Check for duplicates across all</div>
             <div className="flex gap-6">
@@ -164,7 +164,7 @@ export function CSVMappingModal({ open, onClose, onBack, csvData, onUpload }: CS
               <label htmlFor="verify" className="text-sm text-slate-300">Verify leads</label>
               <span className="text-sm text-yellow-400">⚡ 0.25 / Row</span>
             </div>
-          </div>
+          </div> */}
 
           {/* Summary */}
           <div className="mt-8 flex items-center gap-2 text-green-400">
