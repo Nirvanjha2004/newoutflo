@@ -5,7 +5,8 @@ import { Conversation, Account } from "@/types/inbox"; // Ensure Account is impo
 import { useConversationsQuery } from "@/hooks/useInboxQueries";
 import { useAccountsQuery } from "@/hooks/useAccountQueries";
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { BadgeCheck, ChevronDown } from "lucide-react"; // If using lucide-react
+import { BadgeCheck, ChevronDown, Plus } from "lucide-react"; // If using lucide-react
+
 
 interface ConversationListProps {
   searchTerm: string;
@@ -94,7 +95,7 @@ export const ConversationList = ({
 
   const { data: conversationsData = [], isLoading: loading, error } = useConversationsQuery(
     isPendingFilter,
-    searchTerm  // Make sure your query is using the searchTerm parameter
+    //removed the searchTerm from here to avoid unnecessary re-renders
   );
 
   const { data: appUserAccountsData = [] } = useAccountsQuery();
@@ -147,25 +148,25 @@ export const ConversationList = ({
   );
 
 
-  const filteredConversations = useMemo(() => {
-    // Assuming `conversationsData` is the array of conversations
-    return conversationsData.filter(conversation => {
-      // Your existing filtering logic based on isPendingFilter, isMyMessagesFilter
-      // This example keeps the existing filter logic structure
-      const primaryAppUserAccountForFilter = appUserAccountsData.length > 0 ? appUserAccountsData[0] : null; // Simplified for existing filter
+  // const filteredConversations = useMemo(() => {
+  //   // Assuming `conversationsData` is the array of conversations
+  //   return conversationsData.filter(conversation => {
+  //     // Your existing filtering logic based on isPendingFilter, isMyMessagesFilter
+  //     // This example keeps the existing filter logic structure
+  //     const primaryAppUserAccountForFilter = appUserAccountsData.length > 0 ? appUserAccountsData[0] : null; // Simplified for existing filter
 
-      const lastMessageSentByAppUser = conversation.lastMessage && primaryAppUserAccountForFilter &&
-        conversation.lastMessage.senderUrn === primaryAppUserAccountForFilter.urn;
+  //     const lastMessageSentByAppUser = conversation.lastMessage && primaryAppUserAccountForFilter &&
+  //       conversation.lastMessage.senderUrn === primaryAppUserAccountForFilter.urn;
 
-      if (isPendingFilter && lastMessageSentByAppUser) {
-        return false;
-      }
-      if (isMyMessagesFilter && !lastMessageSentByAppUser) {
-        return false;
-      }
-      return true;
-    });
-  }, [searchTerm, activeFilter, isPendingFilter, isMyMessagesFilter, conversationsData, appUserAccountsData]);
+  //     if (isPendingFilter && lastMessageSentByAppUser) {
+  //       return false;
+  //     }
+  //     if (isMyMessagesFilter && !lastMessageSentByAppUser) {
+  //       return false;
+  //     }
+  //     return true;
+  //   });
+  // }, [searchTerm, activeFilter, isPendingFilter, isMyMessagesFilter, conversationsData, appUserAccountsData]);
 
   // Check if any sender account filters are active
   const hasActiveSenderFilters = useMemo(() => {
@@ -208,79 +209,65 @@ export const ConversationList = ({
   const finalFilteredConversations = useMemo(() => {
     let result = hasActiveSenderFilters ? filteredConversationsBySender : conversationsData;
 
-    // Apply search term filter
+    console.log("Filtered Conversations By Sender:", filteredConversationsBySender);
+
+    // FIXED SEARCH LOGIC
     if (searchTerm && searchTerm.trim() !== "") {
-      const lowerCaseSearch = searchTerm.toLowerCase().trim();
+      const term = searchTerm.toLowerCase().trim();
+      
       result = result.filter(conversation => {
-        // Search in participant names
-        const participantNameMatch = conversation.accounts?.some(account =>
-          `${account.firstName || ""} ${account.lastName || ""}`.toLowerCase().includes(lowerCaseSearch)
-        );
-
-        // Search in last message content
-        const lastMessageMatch = conversation.lastMessage?.text?.toLowerCase().includes(lowerCaseSearch);
-
-        // Return true if any of the above conditions match
-        return participantNameMatch || lastMessageMatch;
+        // Check participant names
+        const nameMatch = conversation.accounts?.some(account => {
+          const first = (account.firstName || "").toLowerCase();
+          const last = (account.lastName || "").toLowerCase();
+          const full = `${first} ${last}`.trim();
+          
+          return first.includes(term) || 
+                 last.includes(term) || 
+                 full.includes(term);
+        });
+        
+        // Check message content
+        const messageMatch = (conversation.lastMessage?.text || "").toLowerCase().includes(term);
+        
+        return nameMatch || messageMatch;
       });
     }
 
-    // Apply isPendingFilter logic - "Awaiting Response"
+    // "Awaiting Response" filter
     if (isPendingFilter) {
-      result = result.filter(conversation => {
-        // If there's no last message, we can't be awaiting a response
-        if (!conversation.lastMessage) return false;
-
-        // Get the URNs of all the app user's accounts
-        const appUserUrns = appUserAccountsData.map(account => account.urn).filter(Boolean);
-
-        // A conversation is "awaiting response" if:
-        // 1. Last message was NOT sent by any of the app user's accounts
-        // 2. Last message was sent by the other person (connection)
-        const lastMessageSentByAppUser = appUserUrns.includes(conversation.lastMessage.senderUrn);
-
-        // Return conversations where the last message was NOT sent by the app user
-        // (meaning we're waiting for the user to respond)
-        return !lastMessageSentByAppUser;
-      });
+      const appUserUrns = appUserAccountsData.map(account => account.urn).filter(Boolean);
+      result = result.filter(conversation =>
+        conversation.lastMessage &&
+        !appUserUrns.includes(conversation.lastMessage.senderUrn)
+      );
     }
 
-    // Apply isMyMessagesFilter logic
+    // "My Messages" filter
     if (isMyMessagesFilter) {
-      result = result.filter(conversation => {
-        if (!conversation.lastMessage) return false;
-
-        // Get the URNs of all the app user's accounts
-        const appUserUrns = appUserAccountsData.map(account => account.urn).filter(Boolean);
-
-        // Check if last message was sent by any of the app user's accounts
-        return appUserUrns.includes(conversation.lastMessage.senderUrn);
-      });
+      const appUserUrns = appUserAccountsData.map(account => account.urn).filter(Boolean);
+      result = result.filter(conversation =>
+        conversation.lastMessage &&
+        appUserUrns.includes(conversation.lastMessage.senderUrn)
+      );
     }
 
-    // DEDUPLICATE CONVERSATIONS BY URN
-    // This creates a Map where the key is the conversation URN
-    // For conversations with the same URN, we prefer the one with messages
+    // Deduplicate conversations by URN
     const deduplicatedConversations = Array.from(
       result.reduce((map, conversation) => {
         if (!conversation.urn) return map;
-        
-        // If we already have this conversation URN
-        if (map.has(conversation.urn)) {
-          const existing = map.get(conversation.urn);
-          
-          // Keep the one with messages, or with more messages
-          if (conversation.messages?.length > (existing.messages?.length || 0)) {
-            map.set(conversation.urn, conversation);
-          }
-        } else {
+
+        const existing = map.get(conversation.urn);
+        if (
+          !existing ||
+          (conversation.messages?.length || 0) > (existing.messages?.length || 0)
+        ) {
           map.set(conversation.urn, conversation);
         }
-        
+
         return map;
       }, new Map())
-      // Extract just the values from the Map
-    ).map(([_, conversation]) => conversation);
+    ).map(([, conversation]) => conversation);
 
     return deduplicatedConversations;
   }, [
@@ -292,6 +279,8 @@ export const ConversationList = ({
     isMyMessagesFilter,
     appUserAccountsData
   ]);
+
+
 
   // Toggle a sender account filter
   const toggleSenderAccountFilter = (accountId: string) => {
@@ -395,7 +384,105 @@ export const ConversationList = ({
     );
   }
 
+  // Replace your existing error handling with this proper error check
   if (error) {
+    console.log("Error details:", error);
+
+    // Check for CLIENT_ERROR or if no accounts are connected
+    if ((error.message === "CLIENT_ERROR" ||
+      (typeof error === 'object' && error.error === "No accounts found")) ||
+      appUserAccountsData.length === 0) {
+
+      return (
+        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+          <div className="w-64 h-64 mb-6">
+            {/* LinkedIn Accounts Disconnected Infographic */}
+            <svg viewBox="0 0 400 300" className="w-full h-full">
+              {/* Background Circle */}
+              <circle cx="200" cy="150" r="120" fill="#f0f4ff" />
+
+              {/* User Profile Icon */}
+              <g className="profile-icon" opacity="0.8">
+                <circle cx="150" cy="130" r="35" fill="#e0e7ff" stroke="#c7d2fe" strokeWidth="2" />
+                <circle cx="150" cy="115" r="12" fill="#818cf8" />
+                <rect x="130" y="132" width="40" height="20" rx="10" fill="#818cf8" />
+              </g>
+
+              {/* LinkedIn Icon - Added more margin from left side */}
+              <g className="linkedin-icon animate-pulse">
+                <rect x="265" y="105" width="60" height="60" rx="8" fill="#4f46e5" />
+                <text
+                  x="290"
+                  y="145"
+                  fontFamily="Arial"
+                  fontSize="40"
+                  fontWeight="bold"
+                  fill="white"
+                  textAnchor="middle"
+                >
+                  in
+                </text>
+              </g>
+
+              {/* Broken Connection Line */}
+              <path
+                d="M190 130 L220 130 M235 130 L260 130"
+                stroke="#d1d5db"
+                strokeWidth="4"
+                strokeLinecap="round"
+                strokeDasharray="5,5"
+              />
+
+              {/* Red X Mark - Properly centered */}
+              <g className="x-mark">
+                <circle cx="225" cy="130" r="17" fill="#fee2e2" />
+                <path
+                  d="M215 120 L235 140 M235 120 L215 140"
+                  stroke="#ef4444"
+                  strokeWidth="4"
+                  strokeLinecap="round"
+                />
+              </g>
+              {/* Animation Styles */}
+              <style>
+                {`
+          @keyframes pulse {
+            0% { opacity: 0.7; }
+            50% { opacity: 1; }
+            100% { opacity: 0.7; }
+          }
+          .linkedin-icon {
+            animation: pulse 2s infinite;
+          }
+        `}
+              </style>
+            </svg>
+          </div>
+
+          <h3 className="text-xl font-bold text-gray-900 mb-2">
+            No LinkedIn Accounts Connected
+          </h3>
+          <p className="text-gray-500 mb-6 max-w-sm">
+            Connect a LinkedIn account to view and respond to your messages
+          </p>
+
+          <Button
+            variant="default"
+            onClick={() => {
+              // Navigate to accounts page or open connect account modal
+              window.location.href = '/settings/accounts';
+            }}
+            className="bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm flex items-center gap-2"
+          >
+            <Plus size={16} />
+            Connect LinkedIn Account
+          </Button>
+        </div>
+
+      );
+    }
+
+    // Handle other types of errors with the default error message
     return (
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="text-red-500">Error loading conversations</div>
@@ -403,7 +490,7 @@ export const ConversationList = ({
     );
   }
 
-  if (searchTerm && filteredConversations.length === 0) {
+  if (searchTerm && finalFilteredConversations.length === 0) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-gray-50">
         <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-6 shadow-lg border border-gray-200">
@@ -424,9 +511,9 @@ export const ConversationList = ({
 
   return (
     <div style={{
-        scrollbarWidth: 'none',           // Firefox
-        msOverflowStyle: 'none',          // IE 10+
-      }} className="flex-1 overflow-y-auto bg-indigo-50/70 p-4 scrollbar-none">
+      scrollbarWidth: 'none',           // Firefox
+      msOverflowStyle: 'none',          // IE 10+
+    }} className="flex-1 overflow-y-auto bg-indigo-50/70 p-4 scrollbar-none">
       {/* Display sender account filters */}
       {renderSenderAccountFilters()}
 
