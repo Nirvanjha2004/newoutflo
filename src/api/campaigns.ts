@@ -86,7 +86,7 @@ export const getCampaignInsights = async (campaignId: string): Promise<GetCampai
   );
 };
 
-// Update the convertDelayToMs function to handle minutes as well
+// Fix the convertDelayToMs function to handle both string and number inputs
 const convertDelayToMs = (delay: string | number): number => {
   // If delay is a number, assume it's already in seconds and convert to milliseconds
   if (typeof delay === 'number') {
@@ -100,19 +100,16 @@ const convertDelayToMs = (delay: string | number): number => {
       return Number(delay) * 1000;
     }
     
-    // Try to match a pattern with days, hours, and minutes
-    // This matches formats like "2days3hours15minutes" or similar variations
-    const match = delay.match(/(?:(\d+)days)?(?:(\d+)hours)?(?:(\d+)minutes)?/);
+    // Try the original pattern
+    const match = delay.match(/(\d+)days(\d+)hours/);
     if (match) {
-      const days = parseInt(match[1] || '0', 10);
-      const hours = parseInt(match[2] || '0', 10);
-      const minutes = parseInt(match[3] || '0', 10);
+      const days = parseInt(match[1], 10);
+      const hours = parseInt(match[2], 10);
       
-      const MS_PER_MINUTE = 60000;    // 1 minute = 60000 ms
-      const MS_PER_HOUR = 3600000;    // 1 hour = 3600000 ms
+      const MS_PER_HOUR = 3600000; // 1 hour = 3600000 ms
       const MS_PER_DAY = MS_PER_HOUR * 24;
       
-      return days * MS_PER_DAY + hours * MS_PER_HOUR + minutes * MS_PER_MINUTE;
+      return days * MS_PER_DAY + hours * MS_PER_HOUR;
     }
   }
   
@@ -120,7 +117,6 @@ const convertDelayToMs = (delay: string | number): number => {
   console.warn('Failed to parse delay value:', delay);
   return 0;
 };
-  
 
 export const postCampaign = async (campaignData: Campaign): Promise<GenericApiResponse> => {
   const formData = new FormData();
@@ -207,9 +203,7 @@ export const postCampaign = async (campaignData: Campaign): Promise<GenericApiRe
   sunday: { startTime: 32400, endTime: 61200, enabled: false }
 };
 
-  formData.append("operationalTimes", JSON.stringify({
-    operationalTimes
-  }));
+  formData.append("operationalTimes", JSON.stringify(operationalTimes));
 
 
 
