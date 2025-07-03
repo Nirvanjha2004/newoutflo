@@ -19,7 +19,7 @@ export const useConnectionsQuery = (
     options: {
       enabled: isAuthenticated,
       keepPreviousData: true,
-      refetchInterval: 7000,
+      refetchInterval: 1000,
       getPreviousPageParam: (firstPage) => {
         return firstPage.cursors.previous === null ? undefined : firstPage.cursors.previous;
       },

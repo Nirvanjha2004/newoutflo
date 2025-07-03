@@ -39,7 +39,7 @@ export const useConversationsQuery = (
     },
     options: {
       enabled: isAuthenticated,
-      refetchInterval: 7000,
+      refetchInterval: 1000,
       onSuccess: () => {
         setSearchLoading?.(false);
       },
@@ -53,7 +53,7 @@ export const useMessagesQuery = (conversationId: string | undefined) => {
     queryKey: ["messages", conversationId],
     queryFn: async () => (await getMessages(conversationId!)).data,
     options: {
-      refetchInterval: 7000,
+      refetchInterval: 1000,
       enabled: isAuthenticated && !!conversationId,
     },
   });

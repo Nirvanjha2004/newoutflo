@@ -27,18 +27,26 @@ export const ConversationView = ({ conversation, onClose, onProfilePreview }: Co
   console.log("The conversation detail:", conversationDetail);
   // Extract messages array from API response (handles different response formats)
   const messages = useMemo(() => {
+    let messagesArray = [];
+
     if (!conversationDetail) return [];
 
-    // Handle case where messages is a property of conversationDetail
+    // Handle different response formats
     if (conversationDetail.messages && Array.isArray(conversationDetail.messages))
-      return conversationDetail.messages;
+      messagesArray = conversationDetail.messages;
+    else if (Array.isArray(conversationDetail))
+      messagesArray = conversationDetail;
+    else {
+      console.error("Unknown message data format:", conversationDetail);
+      return [];
+    }
 
-    // Handle case where conversationDetail is directly the messages array
-    if (Array.isArray(conversationDetail))
-      return conversationDetail;
-
-    console.error("Unknown message data format:", conversationDetail);
-    return [];
+    // Sort messages by timestamp (ascending order - oldest first)
+    return messagesArray.sort((a, b) => {
+      const timeA = typeof a.sentAt === 'string' ? parseInt(a.sentAt, 10) : a.sentAt;
+      const timeB = typeof b.sentAt === 'string' ? parseInt(b.sentAt, 10) : b.sentAt;
+      return timeA - timeB;
+    });
   }, [conversationDetail]);
 
   // Auto-scroll to bottom when messages change
@@ -77,15 +85,10 @@ export const ConversationView = ({ conversation, onClose, onProfilePreview }: Co
 
   // Determine if a message is sent by the current user
   const isOwnMessage = (msg: Message) => {
-    if (!conversation || !msg.senderUrn) return false;
+    if (!msg.senderUrn || !appUserAccountsData) return false;
 
-    // Here's the issue - we need to invert this logic
-    // In your current setup, accounts[0] is typically YOUR account, not the contact
-    // So messages FROM that account should appear on the right (as your own messages)
-    const primaryAccount = conversation.accounts[0];
-
-    // With the corrected logic: message IS from you if it matches the primary account
-    return msg.senderUrn === primaryAccount.urn;
+    // Check if the message sender URN matches any of the user's accounts
+    return appUserAccountsData.some(account => account.urn === msg.senderUrn);
   };
 
   // Format timestamp for display
@@ -106,7 +109,34 @@ export const ConversationView = ({ conversation, onClose, onProfilePreview }: Co
     if (!timestamp) return "Today";
 
     const timeValue = typeof timestamp === 'string' ? parseInt(timestamp, 10) : timestamp;
-    return new Date(timeValue).toLocaleDateString();
+    const messageDate = new Date(timeValue);
+
+    // Check if the message date is today
+    const today = new Date();
+    if (
+      messageDate.getDate() === today.getDate() &&
+      messageDate.getMonth() === today.getMonth() &&
+      messageDate.getFullYear() === today.getFullYear()
+    ) {
+      return "Today";
+    }
+
+    console.log(`Message timestamp: ${timestamp}, Date: ${messageDate.toISOString()}, Today: ${today.toISOString()}`);
+
+
+    // Optional: Check if it's yesterday
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (
+      messageDate.getDate() === yesterday.getDate() &&
+      messageDate.getMonth() === yesterday.getMonth() &&
+      messageDate.getFullYear() === yesterday.getFullYear()
+    ) {
+      return "Yesterday";
+    }
+
+    // Return the formatted date for other days
+    return messageDate.toLocaleDateString();
   };
 
   if (!conversation) {
@@ -167,6 +197,7 @@ export const ConversationView = ({ conversation, onClose, onProfilePreview }: Co
   const senderFullName = `${senderAccount?.firstName || ''} ${senderAccount?.lastName || ''}`.trim();
   const senderInitials = `${(senderAccount?.firstName || ' ')[0] || ''}${(senderAccount?.lastName || ' ')[0] || ''}`.toUpperCase();
 
+  console.log("The conversation Details are :", conversationDetail);
   return (
     <div className="flex-1 flex flex-col h-full">
       {/* Profile Header */}
@@ -250,9 +281,9 @@ export const ConversationView = ({ conversation, onClose, onProfilePreview }: Co
               </span>
             </Button>
             */}
-            <Button variant="ghost" size="icon" className="rounded-full h-9 w-9 border border-gray-100" onClick={onClose}>
+            {/* <Button variant="ghost" size="icon" className="rounded-full h-9 w-9 border border-gray-100" onClick={onClose}>
               <MoreHorizontal size={18} />
-            </Button>
+            </Button> */}
           </div>
         </div>
       </div>
@@ -262,7 +293,11 @@ export const ConversationView = ({ conversation, onClose, onProfilePreview }: Co
         {/* Date header with better styling */}
         <div className="text-center my-4">
           <span className="text-xs text-purple-600 bg-purple-50 px-3 py-1 rounded-full border border-purple-200 font-medium shadow-sm">
-            {conversationDetail ? formatDate(conversationDetail.createdAt || conversationDetail.createdAtEpoch) : 'Today'}
+            {messages.length > 0 
+              ? formatDate(messages[0].sentAt) 
+              : (conversationDetail 
+                  ? formatDate(conversationDetail.createdAt || conversationDetail.createdAtEpoch) 
+                  : 'Today')}
           </span>
         </div>
 
