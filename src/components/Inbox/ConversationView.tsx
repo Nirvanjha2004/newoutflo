@@ -338,11 +338,19 @@ export const ConversationView = ({ conversation, onClose, onProfilePreview }: Co
                   )}
 
                   <div className={`message max-w-xs lg:max-w-md ${own ? 'mr-0' : 'ml-0 mr-0'}`}>
-                    <div className={`px-4 py-3 rounded-2xl ${own
+                    <div className={`px-4 py-3 rounded-2xl overflow-hidden ${own
                       ? 'bg-purple-600 text-white rounded-br-none shadow-md'
                       : 'bg-white text-gray-900 border border-gray-200 rounded-bl-none shadow-sm'
                       }`}>
-                      <p className="whitespace-pre-wrap text-sm">{msg.text}</p>
+                      <p className="whitespace-pre-wrap text-sm break-words overflow-hidden">
+                        {msg.text.includes('http') 
+                          ? msg.text.split(/\s+/).map((part, i) => 
+                              part.startsWith('http') 
+                                ? <span key={i} className="break-all">{part} </span>
+                                : <span key={i}>{part} </span>
+                            )
+                          : msg.text}
+                      </p>
                     </div>
                     <div className={`text-[11px] mt-1 ${own ? 'text-right text-gray-500' : 'text-gray-500'}`}>
                       {formatTimestamp(msg.sentAt)}
