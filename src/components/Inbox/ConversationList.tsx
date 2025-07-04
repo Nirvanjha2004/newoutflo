@@ -188,22 +188,19 @@ export const ConversationList = ({
 
     // Filter conversations by selected sender accounts
     return conversationsData.filter(conversation => {
-      // Get all account URNs in this conversation
-      const accountURNs = conversation.accounts.map(acc => acc.urn).filter(Boolean);
-
-      // For each URN, check if it corresponds to a selected account
-      for (const urn of accountURNs) {
-        // Find the account with this URN
-        const matchingAccount = appUserAccountsData.find(acc => acc.urn === urn);
-
-        // If account exists and its ID is in the selected accounts map with value=true
-        if (matchingAccount && matchingAccount.id && selectedSenderAccounts[matchingAccount.id]) {
-          return true; // Include this conversation
-        }
+      // If no last message or no sender URN, we can't determine the sender
+      if (!conversation.lastMessage || !conversation.lastMessage.senderUrn) {
+        return false;
       }
 
-      // None of this conversation's accounts match the selected filters
-      return false;
+      // Get the URN of the last message sender
+      const lastMessageSenderUrn = conversation.lastMessage.senderUrn;
+
+      // Find the account in appUserAccountsData that matches the sender URN
+      const senderAccount = appUserAccountsData.find(acc => acc.urn === lastMessageSenderUrn);
+      
+      // If a sender account was found AND it's in our selected accounts list, include this conversation
+      return senderAccount && senderAccount.id && selectedSenderAccounts[senderAccount.id];
     });
   }, [conversationsData, appUserAccountsData, selectedSenderAccounts, hasActiveSenderFilters]);
 
