@@ -6,6 +6,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch'; // Add this import
 import { Label } from '@/components/ui/label'; // Add this import
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -58,12 +60,8 @@ const Sequence: React.FC<SequenceProps> = ({
 }) => {
     // Get campaign info from store
 
-    console.log('Workflow data:', workflowData);
     const { campaign } = useCampaignStore();
     const leadListId = campaign?.leads?.leadListId || campaign?.leadListId;
-
-    console.log('The leadlist ID is:', leadListId);
-
     // Add state for variables and preview
     const [variables, setVariables] = useState<Variable[]>([]);
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -71,7 +69,9 @@ const Sequence: React.FC<SequenceProps> = ({
     const [previewStepId, setPreviewStepId] = useState<string | null>(null);
     const [leadListName, setLeadListName] = useState<string>('');
     const [totalLeads, setTotalLeads] = useState<number>(0);
-
+    const [selectedAccountId, setSelectedAccountId] = useState<string | null>(
+        campaign?.senderAccounts?.[0]?.id || null
+    );
     // Fetch campaign-specific variables if leadListId is available
     const { data: variablesData, isLoading: variablesLoading } = useQuery({
         queryKey: ['campaignVariables', leadListId],
@@ -85,10 +85,7 @@ const Sequence: React.FC<SequenceProps> = ({
     // Add this useEffect to handle the data when it arrives
     useEffect(() => {
         if (variablesData) {
-            console.log('Fetched campaign variables:', variablesData);
-            // Update variables state
             setVariables(variablesData || []);
-            // Store additional information
         }
     }, [variablesData]);
 
@@ -97,9 +94,30 @@ const Sequence: React.FC<SequenceProps> = ({
 
     const isUpdatingRef = useRef(false);
 
-    // Initialize steps from workflowData if available, otherwise use default steps
 
-    console.log('Workflow data:', workflowData);
+    // Helper function to get premium status and character limit
+    const getSelectedAccountInfo = () => {
+        const selectedAccount = campaign?.senderAccounts?.find(
+            acc => acc.id === selectedAccountId
+        ) || campaign?.senderAccounts?.[0];
+
+        const isPremium = selectedAccount?.isPremium || false;
+        const CHARACTER_LIMIT = isPremium ? 300 : 200;
+
+        return { selectedAccount, isPremium, CHARACTER_LIMIT };
+    };
+
+    // Group accounts by premium status
+    const groupedAccounts = React.useMemo(() => {
+        const accounts = campaign?.senderAccounts || [];
+        return {
+            premium: accounts.filter(acc => acc.isPremium),
+            standard: accounts.filter(acc => !acc.isPremium)
+        };
+    }, [campaign?.senderAccounts]);
+
+    console.log("The campaign Data is :", campaign);
+
     const [steps, setSteps] = useState<SequenceStep[]>(
         workflowData && workflowData.steps && workflowData.steps.length > 0
             ? workflowData.steps.map((step: any, index: number) => {
@@ -115,9 +133,6 @@ const Sequence: React.FC<SequenceProps> = ({
                 else if (step.type === CampaignStepType.FOLLOW_UP) {
                     // Follow-up message needs a delay step before it
                     const newGroupId = `api-group-${index}`;
-
-                    console.log('Step data:', step.data);
-                    
                     // Calculate days, hours and minutes from seconds
                     const totalSeconds = step.data.delay ?? 0;
                     const days = Math.floor(totalSeconds / (24 * 60 * 60));
@@ -182,6 +197,13 @@ const Sequence: React.FC<SequenceProps> = ({
     const [excludeConnected, setExcludeConnected] = useState(
         workflowData?.excludeConnected || false
     );
+
+    const getCharacterLimitColor = (currentLength: number, limit: number) => {
+        const percentage = (currentLength / limit) * 100;
+        if (percentage >= 90) return "text-red-500";
+        if (percentage >= 70) return "text-amber-500";
+        return "text-gray-500";
+    };
     // Convert API workflow format to component steps format
     useEffect(() => {
         if (isUpdatingRef.current) {
@@ -382,7 +404,6 @@ const Sequence: React.FC<SequenceProps> = ({
 
         // Update the campaign store with configs
         setConfigs(configs);
-        console.log('Updated campaign store with configs:', configs);
 
     }, [steps, setConfigs, viewMode, excludeConnected]);
 
@@ -443,11 +464,7 @@ const Sequence: React.FC<SequenceProps> = ({
 
     const insertVariable = (stepId: string, variableId: string) => {
         if (viewMode) return; // Prevent in view mode
-
-        console.log(`Finding step ${stepId} to insert variable ${variableId}`);
         const step = steps.find(s => s.id === stepId);
-        console.log('Found step:', step);
-
         if (step && step.type === 'followup') {
             // Get textarea element
             const textarea = document.querySelector(`textarea[data-step-id="${stepId}"]`) as HTMLTextAreaElement;
@@ -482,13 +499,19 @@ const Sequence: React.FC<SequenceProps> = ({
         }
     };
 
+    // Add these state variables after your other state variables
+    const [premiumMessage, setPremiumMessage] = useState<string>('');
+    const [standardMessage, setStandardMessage] = useState<string>('');
+    // Add this state variable to track which textarea is focused
+    const [focusedMessageType, setFocusedMessageType] = useState<'premium' | 'standard'>('premium');
+
     const insertConnectionVariable = (variableId: string) => {
         if (viewMode) return; // Prevent in view mode
 
-        if (currentConnectionStep) {
-            const newMessage = (currentConnectionStep.connectionMessage || '') + `{${variableId}}`;
-            updateConnectionMessage(currentConnectionStep.id, newMessage);
-            setCurrentConnectionStep({ ...currentConnectionStep, connectionMessage: newMessage });
+        if (focusedMessageType === 'premium') {
+            setPremiumMessage((current) => current + `{${variableId}}`);
+        } else {
+            setStandardMessage((current) => current + `{${variableId}}`);
         }
     };
 
@@ -496,12 +519,21 @@ const Sequence: React.FC<SequenceProps> = ({
         if (viewMode) return; // Prevent in view mode
 
         setCurrentConnectionStep(step);
+        // Set both message types to the current connection message
+        setPremiumMessage(step.connectionMessage || '');
+        setStandardMessage(step.connectionMessage || '');
         setIsConnectionMessageOpen(true);
     };
 
     const handleSaveMessage = () => {
         if (viewMode) return; // Prevent in view mode
 
+        if (currentConnectionStep) {
+            // For now, we'll use premium message if available, otherwise standard message
+            const messageToSave = premiumMessage || standardMessage;
+            updateConnectionMessage(currentConnectionStep.id, messageToSave);
+        }
+        
         setIsConnectionMessageOpen(false);
         setCurrentConnectionStep(null);
     };
@@ -664,7 +696,7 @@ const Sequence: React.FC<SequenceProps> = ({
                                     if (days === 0 && hours === 0 && minutes === 0) {
                                         return '0 days';
                                     }
-                                    
+
                                     let timeText = '';
                                     if (days > 0) {
                                         timeText += `${days} ${days === 1 ? 'day' : 'days'} `;
@@ -810,7 +842,6 @@ const Sequence: React.FC<SequenceProps> = ({
                                                 variant="outline"
                                                 size="sm"
                                                 onClick={() => {
-                                                    console.log(`Inserting variable: ${variable.id} into step: ${step.id}`);
                                                     insertVariable(step.id, variable.id);
                                                 }}
                                                 className="h-7 text-xs px-2 border-gray-200 hover:bg-indigo-50"
@@ -909,7 +940,7 @@ const Sequence: React.FC<SequenceProps> = ({
                 )}
 
                 {renderLeadListInfo()}
-                
+
                 {/* Add the "exclude connected" option below the lead info */}
                 {hasFollowUps && (
                     <div className={`mb-6 ${viewMode ? 'bg-gray-50/50' : 'bg-white'} border ${viewMode ? 'border-gray-100' : 'border-gray-200'} rounded-lg p-4 shadow-sm`}>
@@ -927,14 +958,14 @@ const Sequence: React.FC<SequenceProps> = ({
                                         disabled={viewMode}
                                         className="data-[state=checked]:bg-blue-600"
                                     />
-                                    <Label 
-                                        htmlFor="exclude-connected" 
+                                    <Label
+                                        htmlFor="exclude-connected"
                                         className="text-sm font-medium cursor-pointer"
                                     >
                                         Don't send follow-ups to already connected
                                     </Label>
                                 </div>
-                                
+
                                 {excludeConnected && (
                                     <Badge className="bg-blue-100 text-blue-700 border-blue-200">
                                         Active
@@ -942,7 +973,7 @@ const Sequence: React.FC<SequenceProps> = ({
                                 )}
                             </div>
                         </div>
-                        
+
                         {excludeConnected && (
                             <div className="mt-2 p-2 bg-blue-50 rounded-md">
                                 <p className="text-xs text-blue-700 flex items-center">
@@ -1028,7 +1059,7 @@ const Sequence: React.FC<SequenceProps> = ({
                         </SheetDescription>
                     </SheetHeader>
 
-                    <div className="mt-6 space-y-4 flex-1">
+                    <div className="mt-6 space-y-6 flex-1">
                         {viewMode && (
                             <div className="bg-blue-50 p-2 rounded-md text-sm text-blue-700 flex items-center mb-4">
                                 <Eye className="w-4 h-4 mr-2" />
@@ -1036,33 +1067,163 @@ const Sequence: React.FC<SequenceProps> = ({
                             </div>
                         )}
 
-                        <div>
-                            <label className="text-sm font-medium text-gray-700 mb-2 block">
-                                Message
-                            </label>
-                            {viewMode ? (
-                                <div className="p-3 bg-gray-50 rounded-md border border-gray-200 text-sm text-gray-700 whitespace-pre-wrap min-h-[120px]">
-                                    {currentConnectionStep?.connectionMessage || 'No message content'}
+                        {/* Premium Accounts Section */}
+                        {groupedAccounts.premium.length > 0 && (
+                          <div className="mb-4">
+                            <p className="text-xs text-gray-500 mb-2">Premium Accounts</p>
+                            <div className="flex flex-wrap gap-2 mb-3">
+                              {groupedAccounts.premium.map(account => (
+                                <div key={account.id} className="flex items-center bg-amber-50 border border-amber-100 rounded-md px-2 py-1">
+                                  <Avatar className="h-6 w-6 mr-1.5">
+                                    {account.profileImageUrl ? (
+                                      <AvatarImage src={account.profileImageUrl} alt={account.firstName} />
+                                    ) : (
+                                      <AvatarFallback className="bg-amber-100 text-amber-800 text-xs">
+                                        {account.firstName?.[0]}
+                                      </AvatarFallback>
+                                    )}
+                                  </Avatar>
+                                  <span className="text-xs font-medium text-amber-900">{account.firstName}</span>
+                                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full ml-1.5"></div>
                                 </div>
-                            ) : (
-                                <Textarea
-                                    value={currentConnectionStep?.connectionMessage || ''}
-                                    onChange={(e) => {
-                                        if (currentConnectionStep && !viewMode) {
-                                            updateConnectionMessage(currentConnectionStep.id, e.target.value);
-                                            setCurrentConnectionStep({ ...currentConnectionStep, connectionMessage: e.target.value });
-                                        }
-                                    }}
-                                    placeholder="Hi {first_name}, I'd like to connect with you..."
-                                    className="min-h-[120px] resize-none"
-                                    disabled={viewMode}
-                                />
-                            )}
-                        </div>
+                              ))}
+                            </div>
+                                                    
+                            {/* Premium Message Input - Keep the same */}
+                            <div className="mb-6">
+                              <label className="text-sm font-medium text-gray-700 mb-2 block flex justify-between">
+                                <span>Premium Message</span>
+                                <span className={`text-xs ${getCharacterLimitColor(premiumMessage.length, 300)}`}>
+                                  {premiumMessage.length}/300
+                                  <span className="ml-1 bg-amber-100 text-amber-700 px-1 rounded text-[10px] font-medium">
+                                    PREMIUM
+                                  </span>
+                                </span>
+                              </label>
+                              
+                              {viewMode ? (
+                                <div className="p-3 bg-gray-50 rounded-md border border-gray-200 text-sm text-gray-700 whitespace-pre-wrap min-h-[120px]">
+                                    {premiumMessage || 'No message content'}
+                                </div>
+                              ) : (
+                                <div className="relative">
+                                  <Textarea
+                                      value={premiumMessage}
+                                      onChange={(e) => {
+                                          if (!viewMode) {
+                                              // Limit premium input to 300 characters
+                                              const newText = e.target.value.slice(0, 300);
+                                              setPremiumMessage(newText);
+                                          }
+                                      }}
+                                      onFocus={() => setFocusedMessageType('premium')}
+                                      placeholder="Hi {first_name}, I'd like to connect with you... (Premium: 300 characters allowed)"
+                                      className={`min-h-[120px] resize-none bg-amber-50 border-amber-200 focus:border-amber-300 focus:ring-amber-200 ${
+                                          premiumMessage.length >= 300
+                                              ? "border-red-300 focus:border-red-500 focus:ring-red-200"
+                                              : focusedMessageType === 'premium' ? "ring-2 ring-amber-300" : ""
+                                      }`}
+                                      disabled={viewMode}
+                                  />
+                                  
+                                  {premiumMessage.length >= 300 && (
+                                      <div className="mt-1 text-xs text-red-500 flex items-center">
+                                          <AlertCircle className="w-3 h-3 mr-1" />
+                                          You've reached the premium character limit (300)
+                                      </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
 
+                        {/* Standard Accounts Section */}
+                        {groupedAccounts.standard.length > 0 && (
+                          <div className="mb-4">
+                            <p className="text-xs text-gray-500 mb-2">Standard Accounts</p>
+                            <div className="flex flex-wrap gap-2 mb-3">
+                              {groupedAccounts.standard.map(account => (
+                                <div key={account.id} className="flex items-center bg-blue-50 border border-blue-100 rounded-md px-2 py-1">
+                                  <Avatar className="h-6 w-6 mr-1.5">
+                                    {account.profileImageUrl ? (
+                                      <AvatarImage src={account.profileImageUrl} alt={account.firstName} />
+                                    ) : (
+                                      <AvatarFallback className="bg-blue-100 text-blue-800 text-xs">
+                                        {account.firstName?.[0]}
+                                      </AvatarFallback>
+                                    )}
+                                  </Avatar>
+                                  <span className="text-xs font-medium text-blue-900">{account.firstName}</span>
+                                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full ml-1.5"></div>
+                                </div>
+                              ))}
+                            </div>
+                            
+                            {/* Standard Message Input */}
+                            <div className="mb-6">
+                              <label className="text-sm font-medium text-gray-700 mb-2 block flex justify-between">
+                                <span>Standard Message</span>
+                                <span className={`text-xs ${getCharacterLimitColor(standardMessage.length, 200)}`}>
+                                  {standardMessage.length}/200
+                                  <span className="ml-1 bg-blue-100 text-blue-700 px-1 rounded text-[10px] font-medium">
+                                    STANDARD
+                                  </span>
+                                </span>
+                              </label>
+                              
+                              {viewMode ? (
+                                <div className="p-3 bg-gray-50 rounded-md border border-gray-200 text-sm text-gray-700 whitespace-pre-wrap min-h-[120px]">
+                                    {standardMessage || 'No message content'}
+                                </div>
+                              ) : (
+                                <div className="relative">
+                                  <Textarea
+                                      value={standardMessage}
+                                      onChange={(e) => {
+                                          if (!viewMode) {
+                                              // Limit standard input to 200 characters
+                                              const newText = e.target.value.slice(0, 200);
+                                              setStandardMessage(newText);
+                                          }
+                                      }}
+                                      onFocus={() => setFocusedMessageType('standard')}
+                                      placeholder="Hi {first_name}, I'd like to connect with you... (Standard: 200 characters allowed)"
+                                      className={`min-h-[120px] resize-none bg-blue-50 border-blue-200 focus:border-blue-300 focus:ring-blue-200 ${
+                                          standardMessage.length >= 200
+                                              ? "border-red-300 focus:border-red-500 focus:ring-red-200"
+                                              : focusedMessageType === 'standard' ? "ring-2 ring-blue-300" : ""
+                                      }`}
+                                      disabled={viewMode}
+                                  />
+                                  
+                                  {standardMessage.length >= 200 && (
+                                      <div className="mt-1 text-xs text-red-500 flex items-center">
+                                          <AlertCircle className="w-3 h-3 mr-1" />
+                                          You've reached the standard character limit (200). Upgrade to premium for longer messages.
+                                      </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Variables Section */}
                         {!viewMode && (
                             <div>
-                                <p className="text-sm font-medium text-gray-700 mb-3">Insert Variables</p>
+                                <div className="flex items-center justify-between mb-3">
+                                    <p className="text-sm font-medium text-gray-700">Insert Variables</p>
+                                    <Badge 
+                                        className={focusedMessageType === 'premium' 
+                                            ? "bg-amber-100 text-amber-700 border-amber-200"
+                                            : "bg-blue-100 text-blue-700 border-blue-200"
+                                        }
+                                    >
+                                        Adding to {focusedMessageType === 'premium' ? 'Premium' : 'Standard'} message
+                                    </Badge>
+                                </div>
+                                
                                 <div className="grid grid-cols-2 gap-2">
                                     {variables.map(variable => (
                                         <Button
@@ -1070,10 +1231,15 @@ const Sequence: React.FC<SequenceProps> = ({
                                             variant="outline"
                                             size="sm"
                                             onClick={() => insertConnectionVariable(variable.id)}
-                                            className="justify-start"
+                                            className={`justify-start ${focusedMessageType === 'premium' 
+                                                ? "bg-amber-50 border-amber-200 hover:bg-amber-100" 
+                                                : "bg-blue-50 border-blue-200 hover:bg-blue-100"
+                                            }`}
                                             disabled={viewMode}
                                         >
-                                            <User className="w-4 h-4 mr-2" />
+                                            <User className={`w-4 h-4 mr-2 ${
+                                                focusedMessageType === 'premium' ? "text-amber-700" : "text-blue-700"
+                                            }`} />
                                             {variable.name}
                                         </Button>
                                     ))}
@@ -1082,7 +1248,7 @@ const Sequence: React.FC<SequenceProps> = ({
                         )}
                     </div>
 
-                    <div className="flex gap-3 pt-6 border-t">
+                    <div className="flex gap-3 pt-6 border-t mt-4">
                         {!viewMode && (
                             <Button
                                 onClick={handleSaveMessage}

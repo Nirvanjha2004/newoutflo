@@ -249,10 +249,9 @@ const AccountsContent = () => {
                         src={getAccountProfileImage(account)}
                         alt={fullName}
                         className="h-full w-full object-cover"
-                        referrerPolicy="no-referrer" // Add this line
-                        loading="lazy" // Add this line
+                        referrerPolicy="no-referrer"
+                        loading="lazy"
                         onError={(e) => {
-                          // If image fails to load, remove it so fallback can show
                           e.currentTarget.style.display = 'none';
                         }}
                       />
@@ -260,7 +259,20 @@ const AccountsContent = () => {
                         {initials}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="font-medium text-gray-900 text-sm">{fullName}</span>
+                    <div className="flex flex-col">
+                      <div className="flex items-center">
+                        <span className="font-medium text-gray-900 text-sm">{fullName}</span>
+                        {account.isPremium && (
+                          <Badge className="ml-2 bg-amber-100 text-amber-700 border-amber-200 h-5 text-[10px]">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 mr-1">
+                              <path fillRule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a3 3 0 00-3-3v-3c0-2.9-2.35-5.25-5.25-5.25zm3.75 8.25v-3a3.75 3.75 0 10-7.5 0v3h7.5z" clipRule="evenodd" />
+                            </svg>
+                            Premium
+                          </Badge>
+                        )}
+                      </div>
+                      {/* You can optionally add a subtitle here if needed */}
+                    </div>
                   </div>
 
                   <div>

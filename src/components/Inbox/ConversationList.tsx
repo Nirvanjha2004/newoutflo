@@ -186,21 +186,23 @@ export const ConversationList = ({
       return conversationsData;
     }
 
-    // Filter conversations by selected sender accounts
+    // Get URNs of all selected sender accounts
+    const selectedAccountUrns = appUserAccountsData
+      .filter(account => account.id && selectedSenderAccounts[account.id])
+      .map(account => account.urn)
+      .filter(Boolean);
+
+    // Filter conversations by participation, not just last message sender
     return conversationsData.filter(conversation => {
-      // If no last message or no sender URN, we can't determine the sender
-      if (!conversation.lastMessage || !conversation.lastMessage.senderUrn) {
+      // If conversation has no accountURNs array, skip it
+      if (!conversation.accountURNs || conversation.accountURNs.length === 0) {
         return false;
       }
-
-      // Get the URN of the last message sender
-      const lastMessageSenderUrn = conversation.lastMessage.senderUrn;
-
-      // Find the account in appUserAccountsData that matches the sender URN
-      const senderAccount = appUserAccountsData.find(acc => acc.urn === lastMessageSenderUrn);
       
-      // If a sender account was found AND it's in our selected accounts list, include this conversation
-      return senderAccount && senderAccount.id && selectedSenderAccounts[senderAccount.id];
+      // Include conversation if any of the selected accounts is a participant
+      return selectedAccountUrns.some(selectedUrn => 
+        conversation.accountURNs.includes(selectedUrn)
+      );
     });
   }, [conversationsData, appUserAccountsData, selectedSenderAccounts, hasActiveSenderFilters]);
 

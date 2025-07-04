@@ -21,6 +21,7 @@ export type Account = {
     campaignFailures?: number;
     sendConnectionReq?: number;
   };
+  isPremium?: boolean;
   campaignFailures?: number;
   profileImageUrl?: string;
   configLimits?: {  
