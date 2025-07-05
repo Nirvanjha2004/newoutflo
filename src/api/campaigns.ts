@@ -144,9 +144,7 @@ export const postCampaign = async (campaignData: Campaign): Promise<GenericApiRe
 
   // Format configs in the exact structure required by backend
   if (campaignData.configs && campaignData.configs.length > 0) {
-    // Ensure delay values are in milliseconds (backend expects ms, not seconds)
     const formattedConfigs = campaignData.configs.map(config => {
-      // Create a deep copy to avoid mutating the original
       const formattedConfig = {
         id: config.id,
         parentID: config.parentID,
@@ -154,7 +152,8 @@ export const postCampaign = async (campaignData: Campaign): Promise<GenericApiRe
         data: { 
           delay: typeof config.data.delay === 'number' ? config.data.delay * 1000 : 0, // Convert seconds to ms
           text: config.data.text || "",
-          // Include excludeConnected flag if it exists
+          ...(config.data.premiumText ? { premiumText: config.data.premiumText } : {}),
+          ...(config.data.standardText ? { standardText: config.data.standardText } : {}),
           ...(config.data.excludeConnected !== undefined ? { excludeConnected: config.data.excludeConnected } : {})
         }
       };
@@ -177,6 +176,11 @@ export const postCampaign = async (campaignData: Campaign): Promise<GenericApiRe
           delay: step.type === CampaignStepType.FOLLOW_UP ? 
                  convertDelayToMs(step.data.delay || "") : 0,
           text: step.data.message || "",
+          // Add premium and standard messages for connection requests
+          ...(step.type === CampaignStepType.CONNECTION_REQUEST && step.data.premiumMessage ? 
+             { premiumText: step.data.premiumMessage } : {}),
+          ...(step.type === CampaignStepType.CONNECTION_REQUEST && step.data.standardMessage ? 
+             { standardText: step.data.standardMessage } : {}),
           // Include excludeConnected flag for follow-up steps if it exists in the workflow
           ...(step.type === CampaignStepType.FOLLOW_UP && 
              campaignData.workflow?.excludeConnected !== undefined ? 
