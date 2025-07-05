@@ -19,9 +19,13 @@ export const ConversationView = ({ conversation, onClose, onProfilePreview }: Co
   const [message, setMessage] = useState("");
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const conversationViewRef = useRef<HTMLDivElement>(null);
   const { data: appUserAccountsData = [] } = useAccountsQuery();
   const { data: conversationDetail, isLoading: loading, error } = useMessagesQuery(conversation?.id);
   const postMessageMutation = usePostMessage();
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+  const previousMessagesLength = useRef(0);
+  const isInitialLoad = useRef(true);
 
 
   console.log("The conversation detail:", conversationDetail);
@@ -51,9 +55,27 @@ export const ConversationView = ({ conversation, onClose, onProfilePreview }: Co
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
-    if (messagesEndRef.current) {
+    if (!messages || messages.length === 0) return;
+    
+    // Check if new messages have been added
+    const isNewMessage = messages.length > previousMessagesLength.current;
+    
+    // Store current message count for next comparison
+    previousMessagesLength.current = messages.length;
+    
+    // Decide whether to scroll based on conditions
+    const shouldScrollNow = 
+      // Initial load - always scroll to bottom
+      isInitialLoad.current || 
+      // New message AND user was already at/near bottom
+      (isNewMessage && shouldAutoScroll);
+    
+    if (shouldScrollNow && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
+    
+    // After first render, mark initial load as complete
+    isInitialLoad.current = false;
   }, [messages]);
 
   const handleSendMessage = async () => {
@@ -137,6 +159,17 @@ export const ConversationView = ({ conversation, onClose, onProfilePreview }: Co
 
     // Return the formatted date for other days
     return messageDate.toLocaleDateString();
+  };
+
+  const handleScroll = () => {
+    if (!conversationViewRef.current) return;
+    
+    const { scrollTop, scrollHeight, clientHeight } = conversationViewRef.current;
+    // User is considered "at bottom" if they're within 100px of the bottom
+    const isAtBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 100;
+    
+    // Only enable auto-scroll if user is at or near the bottom
+    setShouldAutoScroll(isAtBottom);
   };
 
   if (!conversation) {
@@ -289,7 +322,11 @@ export const ConversationView = ({ conversation, onClose, onProfilePreview }: Co
       </div>
 
       {/* Conversation View - Enhanced message area */}
-      <div className="conversation-view flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
+      <div 
+        ref={conversationViewRef}
+        onScroll={handleScroll}
+        className="conversation-view flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50"
+      >
         {/* Date header with better styling */}
         <div className="text-center my-4">
           <span className="text-xs text-purple-600 bg-purple-50 px-3 py-1 rounded-full border border-purple-200 font-medium shadow-sm">
@@ -318,72 +355,84 @@ export const ConversationView = ({ conversation, onClose, onProfilePreview }: Co
                   </div>
                 )}
 
-                <div className={`flex items-end ${own ? 'justify-end' : 'justify-start'} mb-5`}>
-                  {!own && (
-                    <Avatar className="w-8 h-8 mr-2 mb-1 flex-shrink-0 ring-2 ring-gray-100">
-                      {contactAccount.profileImageUrl ? (
-                        <AvatarImage
-                          src={contactAccount.profileImageUrl}
-                          alt={fullName}
-                          className="object-cover"
-                          referrerPolicy="no-referrer"
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                        />
-                      ) : (
-                        <AvatarFallback className="bg-gray-200 text-gray-600 text-xs">
-                          {initials}
-                        </AvatarFallback>
-                      )}
-                    </Avatar>
-                  )}
-
-                  <div className={`message max-w-xs lg:max-w-md ${own ? 'mr-0' : 'ml-0 mr-0'}`}>
-                    <div className={`px-4 py-3 rounded-2xl overflow-hidden ${own
-                      ? 'bg-purple-600 text-white rounded-br-none shadow-md'
-                      : 'bg-white text-gray-900 border border-gray-200 rounded-bl-none shadow-sm'
-                      }`}>
-                      <p className="whitespace-pre-wrap text-sm break-words overflow-hidden">
-                        {msg.text.includes('http') 
-                          ? msg.text.split(/\s+/).map((part, i) => 
-                              part.startsWith('http') 
-                                ? <span key={i} className="break-all">{part} </span>
-                                : <span key={i}>{part} </span>
-                            )
-                          : msg.text}
-                      </p>
-                    </div>
-                    <div className={`text-[11px] mt-1 ${own ? 'text-right text-gray-500' : 'text-gray-500'}`}>
-                      {formatTimestamp(msg.sentAt)}
-                      {own && <span className="ml-1 font-medium">You</span>}
+                {/* Check if this is a system message */}
+                {msg.isSystemMessage ? (
+                  // LinkedIn-style system message with purple rounded container
+                  <div className="flex flex-col items-center my-4">
+                    <div className="px-4 py-2 rounded-full bg-gray-100 border border-gray-200 text-center text-xs text-gray-500 font-medium">
+                      {msg.text}
                     </div>
                   </div>
-
-                  {/* Add avatar for own messages */}
-                  {own && (
-                    <Avatar className="w-8 h-8 ml-2 mb-1 flex-shrink-0 ring-2 ring-purple-100">
-                      {/* Find the user account that sent this message */}
-                      {(() => {
-                        // Find the user account that matches the sender URN
-                        const senderAccount = appUserAccountsData.find(acc => acc.urn === msg.senderUrn) || appUserAccountsData[0];
-                        const userInitials = `${(senderAccount?.firstName || ' ')[0] || ''}${(senderAccount?.lastName || ' ')[0] || ''}`.toUpperCase();
-
-                        return senderAccount?.profileImageUrl ? (
+                ) : (
+                  // Regular message rendering (existing code)
+                  <div className={`flex items-end ${own ? 'justify-end' : 'justify-start'} mb-5`}>
+                    {/* Existing message rendering code */}
+                    {!own && (
+                      <Avatar className="w-8 h-8 mr-2 mb-1 flex-shrink-0 ring-2 ring-gray-100">
+                        {contactAccount.profileImageUrl ? (
                           <AvatarImage
-                            src={senderAccount.profileImageUrl}
-                            alt="You"
+                            src={contactAccount.profileImageUrl}
+                            alt={fullName}
                             className="object-cover"
                             referrerPolicy="no-referrer"
                             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                           />
                         ) : (
-                          <AvatarFallback className="bg-purple-100 text-purple-600 text-xs">
-                            {userInitials || 'You'}
+                          <AvatarFallback className="bg-gray-200 text-gray-600 text-xs">
+                            {initials}
                           </AvatarFallback>
-                        );
-                      })()}
-                    </Avatar>
-                  )}
-                </div>
+                        )}
+                      </Avatar>
+                    )}
+
+                    <div className={`message max-w-xs lg:max-w-md ${own ? 'mr-0' : 'ml-0 mr-0'}`}>
+                      <div className={`px-4 py-3 rounded-2xl overflow-hidden ${own
+                        ? 'bg-purple-600 text-white rounded-br-none shadow-md'
+                        : 'bg-white text-gray-900 border border-gray-200 rounded-bl-none shadow-sm'
+                        }`}>
+                        <p className="whitespace-pre-wrap text-sm break-words overflow-hidden">
+                          {msg.text.includes('http') 
+                            ? msg.text.split(/\s+/).map((part, i) => 
+                                part.startsWith('http') 
+                                  ? <span key={i} className="break-all">{part} </span>
+                                  : <span key={i}>{part} </span>
+                              )
+                            : msg.text}
+                        </p>
+                      </div>
+                      <div className={`text-[11px] mt-1 ${own ? 'text-right text-gray-500' : 'text-gray-500'}`}>
+                        {formatTimestamp(msg.sentAt)}
+                        {own && <span className="ml-1 font-medium">You</span>}
+                      </div>
+                    </div>
+
+                    {/* Add avatar for own messages */}
+                    {own && (
+                      <Avatar className="w-8 h-8 ml-2 mb-1 flex-shrink-0 ring-2 ring-purple-100">
+                        {/* Find the user account that sent this message */}
+                        {(() => {
+                          // Find the user account that matches the sender URN
+                          const senderAccount = appUserAccountsData.find(acc => acc.urn === msg.senderUrn) || appUserAccountsData[0];
+                          const userInitials = `${(senderAccount?.firstName || ' ')[0] || ''}${(senderAccount?.lastName || ' ')[0] || ''}`.toUpperCase();
+
+                          return senderAccount?.profileImageUrl ? (
+                            <AvatarImage
+                              src={senderAccount.profileImageUrl}
+                              alt="You"
+                              className="object-cover"
+                              referrerPolicy="no-referrer"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                            />
+                          ) : (
+                            <AvatarFallback className="bg-purple-100 text-purple-600 text-xs">
+                              {userInitials || 'You'}
+                            </AvatarFallback>
+                          );
+                        })()}
+                      </Avatar>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })

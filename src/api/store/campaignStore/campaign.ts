@@ -14,6 +14,9 @@ export interface CampaignConfig {
   data: {
     delay: number;
     text: string;
+    premiumText?: string;  // Add field for premium messages
+    standardText?: string; // Add field for standard messages
+    excludeConnected?: boolean; // Add flag for follow-up steps
   };
 }
 

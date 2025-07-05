@@ -35,14 +35,17 @@ import { getMessageVariables, Variable } from '@/api/variables';
 import { useQuery } from '../../common/api/use-query';
 import { getCampaignVariables } from '@/api/variables';
 
+// 1. Update the SequenceStep interface to include both message types
 interface SequenceStep {
     id: string;
     type: 'connection' | 'delay' | 'followup';
     content?: string;
-    delay?: { days: number; hours: number; minutes: number }; // Add minutes here
+    delay?: { days: number; hours: number; minutes: number };
     status?: 'accepted' | 'pending';
     groupId?: string;
-    connectionMessage?: string;
+    connectionMessage?: string; // Keep for backward compatibility
+    premiumConnectionMessage?: string; // Add for premium message
+    standardConnectionMessage?: string; // Add for standard message
 }
 
 interface SequenceProps {
@@ -122,12 +125,14 @@ const Sequence: React.FC<SequenceProps> = ({
         workflowData && workflowData.steps && workflowData.steps.length > 0
             ? workflowData.steps.map((step: any, index: number) => {
                 if (step.type === CampaignStepType.CONNECTION_REQUEST) {
-                    // Connection request step
+                    // Connection request step - add both message types
                     return {
                         id: `api-connection-${index}`,
                         type: 'connection',
                         status: 'accepted',
-                        connectionMessage: step.data.message || ''
+                        connectionMessage: step.data.message || '',
+                        premiumConnectionMessage: step.data.premiumMessage || step.data.message || '',
+                        standardConnectionMessage: step.data.standardMessage || step.data.message || ''
                     };
                 }
                 else if (step.type === CampaignStepType.FOLLOW_UP) {
@@ -184,11 +189,22 @@ const Sequence: React.FC<SequenceProps> = ({
             ]
     );
 
-    const updateConnectionMessage = (stepId: string, message: string) => {
+    // 2. Update the updateConnectionMessage function
+    const updateConnectionMessage = (
+        stepId: string, 
+        premiumMessage: string, 
+        standardMessage: string
+    ) => {
         if (viewMode) return; // Prevent updates in view mode
 
         setSteps(steps.map(step =>
-            step.id === stepId ? { ...step, connectionMessage: message } : step
+            step.id === stepId ? { 
+                ...step, 
+                premiumConnectionMessage: premiumMessage,
+                standardConnectionMessage: standardMessage,
+                // For backward compatibility, use premium if available, otherwise standard
+                connectionMessage: premiumMessage || standardMessage 
+            } : step
         ));
     };
 
@@ -217,12 +233,14 @@ const Sequence: React.FC<SequenceProps> = ({
 
             workflowData.steps.forEach((step: any, index: number) => {
                 if (step.type === CampaignStepType.CONNECTION_REQUEST) {
-                    // Connection request step
+                    // Connection request step with both message types
                     convertedSteps.push({
                         id: `api-connection-${index}`,
                         type: 'connection',
                         status: 'accepted',
-                        connectionMessage: step.data.message || ''
+                        connectionMessage: step.data.message || '',
+                        premiumConnectionMessage: step.data.premiumMessage || step.data.message || '',
+                        standardConnectionMessage: step.data.standardMessage || step.data.message || ''
                     });
                 }
                 else if (step.type === CampaignStepType.FOLLOW_UP) {
@@ -279,7 +297,9 @@ const Sequence: React.FC<SequenceProps> = ({
             apiSteps.push({
                 type: CampaignStepType.CONNECTION_REQUEST,
                 data: {
-                    message: connectionStep.connectionMessage || ''
+                    message: connectionStep.connectionMessage || '',
+                    premiumMessage: connectionStep.premiumConnectionMessage || '',
+                    standardMessage: connectionStep.standardConnectionMessage || ''
                 }
             });
         }
@@ -334,7 +354,7 @@ const Sequence: React.FC<SequenceProps> = ({
         }
     }, [steps, workflowData, viewMode, excludeConnected]);
 
-    // Add this effect to update the campaign store when steps change
+    // 6. Update the campaign store update useEffect
     useEffect(() => {
         // Skip if we're currently in an update cycle from props or in view mode
         if (isUpdatingRef.current || viewMode) {
@@ -353,7 +373,9 @@ const Sequence: React.FC<SequenceProps> = ({
                 action: "sendConnectionRequest",
                 data: {
                     delay: 0,
-                    text: connectionStep.connectionMessage || ""
+                    text: connectionStep.connectionMessage || "",
+                    premiumText: connectionStep.premiumConnectionMessage || "",
+                    standardText: connectionStep.standardConnectionMessage || ""
                 }
             });
         }
@@ -465,6 +487,7 @@ const Sequence: React.FC<SequenceProps> = ({
     const insertVariable = (stepId: string, variableId: string) => {
         if (viewMode) return; // Prevent in view mode
         const step = steps.find(s => s.id === stepId);
+        
         if (step && step.type === 'followup') {
             // Get textarea element
             const textarea = document.querySelector(`textarea[data-step-id="${stepId}"]`) as HTMLTextAreaElement;
@@ -492,11 +515,8 @@ const Sequence: React.FC<SequenceProps> = ({
                 const newContent = (step.content || '') + `{${variableId}}`;
                 updateStepContent(stepId, newContent);
             }
-        } else if (step && step.type === 'connection') {
-            // For connection steps
-            const newMessage = (step.connectionMessage || '') + `{${variableId}}`;
-            updateConnectionMessage(stepId, newMessage);
-        }
+        } 
+        // Fix: Connection message variable insertion is handled by insertConnectionVariable instead
     };
 
     // Add these state variables after your other state variables
@@ -515,13 +535,17 @@ const Sequence: React.FC<SequenceProps> = ({
         }
     };
 
+    // 4. Update the handleAddMessage function to set both message types
     const handleAddMessage = (step: SequenceStep) => {
         if (viewMode) return; // Prevent in view mode
 
         setCurrentConnectionStep(step);
-        // Set both message types to the current connection message
-        setPremiumMessage(step.connectionMessage || '');
-        setStandardMessage(step.connectionMessage || '');
+        
+        // Set message states from the step's stored values
+        // Give priority to the specific premium/standard fields if available
+        setPremiumMessage(step.premiumConnectionMessage || step.connectionMessage || '');
+        setStandardMessage(step.standardConnectionMessage || step.connectionMessage || '');
+        
         setIsConnectionMessageOpen(true);
     };
 
@@ -529,9 +553,12 @@ const Sequence: React.FC<SequenceProps> = ({
         if (viewMode) return; // Prevent in view mode
 
         if (currentConnectionStep) {
-            // For now, we'll use premium message if available, otherwise standard message
-            const messageToSave = premiumMessage || standardMessage;
-            updateConnectionMessage(currentConnectionStep.id, messageToSave);
+            // Pass both premium and standard messages
+            updateConnectionMessage(
+                currentConnectionStep.id, 
+                premiumMessage,
+                standardMessage
+            );
         }
         
         setIsConnectionMessageOpen(false);
