@@ -35,3 +35,32 @@ export function isNowWithinTimeSpan(startTime: number, endTime: number, timeZone
 }
 
 
+export function convertToSecondsFormat(operationalTimes: Record<string, any>) {
+  const formatted: Record<string, { startTime: number, endTime: number, enabled: boolean }> = {};
+
+  const toSeconds = (time: string): number => {
+    const [hour, minute] = time.split(":").map(Number);
+    return hour * 3600 + minute * 60;
+  };
+
+  for (const day in operationalTimes) {
+    const lowerDay = day.toLowerCase();
+    const { enabled, slots } = operationalTimes[day];
+
+    let startTime = 0;
+    let endTime = 0;
+
+    if (enabled && slots.length > 0) {
+      startTime = toSeconds(slots[0].from);
+      endTime = toSeconds(slots[slots.length - 1].to);
+    }
+
+    formatted[lowerDay] = {
+      startTime,
+      endTime,
+      enabled
+    };
+  }
+
+  return formatted;
+}
