@@ -458,8 +458,6 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
                                 type = assignType('company');
                             } else if (headerLower.includes('email')) {
                                 type = assignType('email');
-                            } else if (headerLower.includes('tag')) {
-                                type = assignType('tags');
                             } else if (headerLower.includes('company') && (headerLower.includes('url')) && (!headerLower.includes('linkedin'))) {
                                 type = assignType('company-url');
                             }
@@ -483,16 +481,16 @@ const ListOfLeads = ({ leadData, updateLeads, viewMode, onMappingStateChange }: 
                         });
 
                         // Check if tags field exists in the mappings
-                        const hasTagsField = newColumnMappings.some(col => col.type === 'tags');
+                        // const hasTagsField = newColumnMappings.some(col => col.type === 'tags');
 
-                        // If not, add a default tags field
-                        if (!hasTagsField) {
-                            newColumnMappings.push({
-                                columnName: 'Tags (Not in CSV)',
-                                type: 'tags',
-                                samples: ['Add tags manually']
-                            });
-                        }
+                        // // If not, add a default tags field
+                        // if (!hasTagsField) {
+                        //     newColumnMappings.push({
+                        //         columnName: 'Tags (Not in CSV)',
+                        //         type: 'tags',
+                        //         samples: ['Add tags manually']
+                        //     });
+                        // }
 
                         setColumnMappings(newColumnMappings);
                         setValidRowsCount(parsedData.length);

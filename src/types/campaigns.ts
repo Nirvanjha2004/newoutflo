@@ -65,6 +65,8 @@ export interface CampaignConfig {
     delay: number;
     text: string;
     excludeConnected: boolean;
+    premiumText?: string; 
+    standardText?: string;
   };
 }
 

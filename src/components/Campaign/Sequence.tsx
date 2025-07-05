@@ -6,6 +6,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch'; // Add this import
 import { Label } from '@/components/ui/label'; // Add this import
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -33,14 +35,17 @@ import { getMessageVariables, Variable } from '@/api/variables';
 import { useQuery } from '../../common/api/use-query';
 import { getCampaignVariables } from '@/api/variables';
 
+// 1. Update the SequenceStep interface to include both message types
 interface SequenceStep {
     id: string;
     type: 'connection' | 'delay' | 'followup';
     content?: string;
-    delay?: { days: number; hours: number };
+    delay?: { days: number; hours: number; minutes: number };
     status?: 'accepted' | 'pending';
     groupId?: string;
-    connectionMessage?: string;
+    connectionMessage?: string; // Keep for backward compatibility
+    premiumConnectionMessage?: string; // Add for premium message
+    standardConnectionMessage?: string; // Add for standard message
 }
 
 interface SequenceProps {
@@ -58,12 +63,8 @@ const Sequence: React.FC<SequenceProps> = ({
 }) => {
     // Get campaign info from store
 
-    console.log('Workflow data:', workflowData);
     const { campaign } = useCampaignStore();
     const leadListId = campaign?.leads?.leadListId || campaign?.leadListId;
-
-    console.log('The leadlist ID is:', leadListId);
-
     // Add state for variables and preview
     const [variables, setVariables] = useState<Variable[]>([]);
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -71,7 +72,9 @@ const Sequence: React.FC<SequenceProps> = ({
     const [previewStepId, setPreviewStepId] = useState<string | null>(null);
     const [leadListName, setLeadListName] = useState<string>('');
     const [totalLeads, setTotalLeads] = useState<number>(0);
-
+    const [selectedAccountId, setSelectedAccountId] = useState<string | null>(
+        campaign?.senderAccounts?.[0]?.id || null
+    );
     // Fetch campaign-specific variables if leadListId is available
     const { data: variablesData, isLoading: variablesLoading } = useQuery({
         queryKey: ['campaignVariables', leadListId],
@@ -85,10 +88,7 @@ const Sequence: React.FC<SequenceProps> = ({
     // Add this useEffect to handle the data when it arrives
     useEffect(() => {
         if (variablesData) {
-            console.log('Fetched campaign variables:', variablesData);
-            // Update variables state
             setVariables(variablesData || []);
-            // Store additional information
         }
     }, [variablesData]);
 
@@ -97,34 +97,61 @@ const Sequence: React.FC<SequenceProps> = ({
 
     const isUpdatingRef = useRef(false);
 
-    // Initialize steps from workflowData if available, otherwise use default steps
 
-    console.log('Workflow data:', workflowData);
+    // Helper function to get premium status and character limit
+    const getSelectedAccountInfo = () => {
+        const selectedAccount = campaign?.senderAccounts?.find(
+            acc => acc.id === selectedAccountId
+        ) || campaign?.senderAccounts?.[0];
+
+        const isPremium = selectedAccount?.isPremium || false;
+        const CHARACTER_LIMIT = isPremium ? 300 : 200;
+
+        return { selectedAccount, isPremium, CHARACTER_LIMIT };
+    };
+
+    // Group accounts by premium status
+    const groupedAccounts = React.useMemo(() => {
+        const accounts = campaign?.senderAccounts || [];
+        return {
+            premium: accounts.filter(acc => acc.isPremium),
+            standard: accounts.filter(acc => !acc.isPremium)
+        };
+    }, [campaign?.senderAccounts]);
+
+    console.log("The campaign Data is :", campaign);
+
     const [steps, setSteps] = useState<SequenceStep[]>(
         workflowData && workflowData.steps && workflowData.steps.length > 0
             ? workflowData.steps.map((step: any, index: number) => {
                 if (step.type === CampaignStepType.CONNECTION_REQUEST) {
-                    // Connection request step
+                    // Connection request step - add both message types
                     return {
                         id: `api-connection-${index}`,
                         type: 'connection',
                         status: 'accepted',
-                        connectionMessage: step.data.message || ''
+                        connectionMessage: step.data.message || '',
+                        premiumConnectionMessage: step.data.premiumMessage || step.data.message || '',
+                        standardConnectionMessage: step.data.standardMessage || step.data.message || ''
                     };
                 }
                 else if (step.type === CampaignStepType.FOLLOW_UP) {
                     // Follow-up message needs a delay step before it
                     const newGroupId = `api-group-${index}`;
+                    // Calculate days, hours and minutes from seconds
+                    const totalSeconds = step.data.delay ?? 0;
+                    const days = Math.floor(totalSeconds / (24 * 60 * 60));
+                    const hours = Math.floor((totalSeconds % (24 * 60 * 60)) / (60 * 60));
+                    const minutes = Math.floor((totalSeconds % (60 * 60)) / 60);
 
-                    console.log('Step data:', step.data);
-
-                    // Add delay step
+                    // Add delay step with minutes
                     const delayStep = {
                         id: `api-delay-${index}`,
                         type: 'delay',
                         delay: {
-                            days: Math.floor((step.data.delay ?? 0) / (24 * 60 * 60)),
-                            hours: Math.floor(((step.data.delay ?? 0) % (24 * 60 * 60)) / (60 * 60))
+                            days,
+                            hours,
+                            minutes
                         },
                         groupId: newGroupId
                     };
@@ -150,7 +177,7 @@ const Sequence: React.FC<SequenceProps> = ({
                 {
                     id: '2',
                     type: 'delay',
-                    delay: { days: 1, hours: 0 },
+                    delay: { days: 1, hours: 0, minutes: 0 }, // Initialize with minutes
                     groupId: 'group-1'
                 },
                 {
@@ -162,11 +189,22 @@ const Sequence: React.FC<SequenceProps> = ({
             ]
     );
 
-    const updateConnectionMessage = (stepId: string, message: string) => {
+    // 2. Update the updateConnectionMessage function
+    const updateConnectionMessage = (
+        stepId: string, 
+        premiumMessage: string, 
+        standardMessage: string
+    ) => {
         if (viewMode) return; // Prevent updates in view mode
 
         setSteps(steps.map(step =>
-            step.id === stepId ? { ...step, connectionMessage: message } : step
+            step.id === stepId ? { 
+                ...step, 
+                premiumConnectionMessage: premiumMessage,
+                standardConnectionMessage: standardMessage,
+                // For backward compatibility, use premium if available, otherwise standard
+                connectionMessage: premiumMessage || standardMessage 
+            } : step
         ));
     };
 
@@ -175,6 +213,13 @@ const Sequence: React.FC<SequenceProps> = ({
     const [excludeConnected, setExcludeConnected] = useState(
         workflowData?.excludeConnected || false
     );
+
+    const getCharacterLimitColor = (currentLength: number, limit: number) => {
+        const percentage = (currentLength / limit) * 100;
+        if (percentage >= 90) return "text-red-500";
+        if (percentage >= 70) return "text-amber-500";
+        return "text-gray-500";
+    };
     // Convert API workflow format to component steps format
     useEffect(() => {
         if (isUpdatingRef.current) {
@@ -188,25 +233,28 @@ const Sequence: React.FC<SequenceProps> = ({
 
             workflowData.steps.forEach((step: any, index: number) => {
                 if (step.type === CampaignStepType.CONNECTION_REQUEST) {
-                    // Connection request step
+                    // Connection request step with both message types
                     convertedSteps.push({
                         id: `api-connection-${index}`,
                         type: 'connection',
                         status: 'accepted',
-                        connectionMessage: step.data.message || ''
+                        connectionMessage: step.data.message || '',
+                        premiumConnectionMessage: step.data.premiumMessage || step.data.message || '',
+                        standardConnectionMessage: step.data.standardMessage || step.data.message || ''
                     });
                 }
                 else if (step.type === CampaignStepType.FOLLOW_UP) {
                     // Follow-up message needs a delay step before it
                     const newGroupId = `api-group-${index}`;
 
-                    // Add delay step
+                    // Add delay step - FIX: Add minutes calculation
                     convertedSteps.push({
                         id: `api-delay-${index}`,
                         type: 'delay',
                         delay: {
                             days: Math.floor((step.data.delay ?? 0) / (24 * 60 * 60)),
-                            hours: Math.floor(((step.data.delay ?? 0) % (24 * 60 * 60)) / (60 * 60))
+                            hours: Math.floor(((step.data.delay ?? 0) % (24 * 60 * 60)) / (60 * 60)),
+                            minutes: Math.floor(((step.data.delay ?? 0) % (60 * 60)) / 60) // Add minutes calculation
                         },
                         groupId: newGroupId
                     });
@@ -249,7 +297,9 @@ const Sequence: React.FC<SequenceProps> = ({
             apiSteps.push({
                 type: CampaignStepType.CONNECTION_REQUEST,
                 data: {
-                    message: connectionStep.connectionMessage || ''
+                    message: connectionStep.connectionMessage || '',
+                    premiumMessage: connectionStep.premiumConnectionMessage || '',
+                    standardMessage: connectionStep.standardConnectionMessage || ''
                 }
             });
         }
@@ -276,10 +326,11 @@ const Sequence: React.FC<SequenceProps> = ({
         // Convert each complete group to an API step
         followUpGroups.forEach((group, groupId) => {
             if (group.delay && group.followUp) {
-                // Calculate delay in seconds
+                // Calculate delay in seconds - include minutes
                 const delayInSeconds =
                     (group.delay.delay?.days || 0) * 24 * 60 * 60 +
-                    (group.delay.delay?.hours || 0) * 60 * 60;
+                    (group.delay.delay?.hours || 0) * 60 * 60 +
+                    (group.delay.delay?.minutes || 0) * 60;
 
                 apiSteps.push({
                     type: CampaignStepType.FOLLOW_UP,
@@ -303,7 +354,7 @@ const Sequence: React.FC<SequenceProps> = ({
         }
     }, [steps, workflowData, viewMode, excludeConnected]);
 
-    // Add this effect to update the campaign store when steps change
+    // 6. Update the campaign store update useEffect
     useEffect(() => {
         // Skip if we're currently in an update cycle from props or in view mode
         if (isUpdatingRef.current || viewMode) {
@@ -322,7 +373,9 @@ const Sequence: React.FC<SequenceProps> = ({
                 action: "sendConnectionRequest",
                 data: {
                     delay: 0,
-                    text: connectionStep.connectionMessage || ""
+                    text: connectionStep.connectionMessage || "",
+                    premiumText: connectionStep.premiumConnectionMessage || "",
+                    standardText: connectionStep.standardConnectionMessage || ""
                 }
             });
         }
@@ -350,10 +403,11 @@ const Sequence: React.FC<SequenceProps> = ({
         let followUpIndex = 1;
         followUpGroups.forEach((group, groupId) => {
             if (group.delay && group.followUp) {
-                // Calculate delay in seconds
+                // Calculate delay in seconds - include minutes
                 const delayInSeconds =
                     (group.delay.delay?.days || 0) * 24 * 60 * 60 +
-                    (group.delay.delay?.hours || 0) * 60 * 60;
+                    (group.delay.delay?.hours || 0) * 60 * 60 +
+                    (group.delay.delay?.minutes || 0) * 60;
 
                 configs.push({
                     id: followUpIndex,
@@ -372,7 +426,6 @@ const Sequence: React.FC<SequenceProps> = ({
 
         // Update the campaign store with configs
         setConfigs(configs);
-        console.log('Updated campaign store with configs:', configs);
 
     }, [steps, setConfigs, viewMode, excludeConnected]);
 
@@ -393,7 +446,7 @@ const Sequence: React.FC<SequenceProps> = ({
         const delayStep: SequenceStep = {
             id: `delay-${Date.now()}`,
             type: 'delay',
-            delay: { days: 2, hours: 0 },
+            delay: { days: 2, hours: 0, minutes: 0 }, // Initialize with minutes
             groupId
         };
 
@@ -421,7 +474,7 @@ const Sequence: React.FC<SequenceProps> = ({
         ));
     };
 
-    const updateDelay = (stepId: string, field: 'days' | 'hours', value: number) => {
+    const updateDelay = (stepId: string, field: 'days' | 'hours' | 'minutes', value: number) => {
         if (viewMode) return; // Prevent in view mode
 
         setSteps(steps.map(step =>
@@ -433,11 +486,8 @@ const Sequence: React.FC<SequenceProps> = ({
 
     const insertVariable = (stepId: string, variableId: string) => {
         if (viewMode) return; // Prevent in view mode
-
-        console.log(`Finding step ${stepId} to insert variable ${variableId}`);
         const step = steps.find(s => s.id === stepId);
-        console.log('Found step:', step);
-
+        
         if (step && step.type === 'followup') {
             // Get textarea element
             const textarea = document.querySelector(`textarea[data-step-id="${stepId}"]`) as HTMLTextAreaElement;
@@ -465,33 +515,52 @@ const Sequence: React.FC<SequenceProps> = ({
                 const newContent = (step.content || '') + `{${variableId}}`;
                 updateStepContent(stepId, newContent);
             }
-        } else if (step && step.type === 'connection') {
-            // For connection steps
-            const newMessage = (step.connectionMessage || '') + `{${variableId}}`;
-            updateConnectionMessage(stepId, newMessage);
-        }
+        } 
+        // Fix: Connection message variable insertion is handled by insertConnectionVariable instead
     };
+
+    // Add these state variables after your other state variables
+    const [premiumMessage, setPremiumMessage] = useState<string>('');
+    const [standardMessage, setStandardMessage] = useState<string>('');
+    // Add this state variable to track which textarea is focused
+    const [focusedMessageType, setFocusedMessageType] = useState<'premium' | 'standard'>('premium');
 
     const insertConnectionVariable = (variableId: string) => {
         if (viewMode) return; // Prevent in view mode
 
-        if (currentConnectionStep) {
-            const newMessage = (currentConnectionStep.connectionMessage || '') + `{${variableId}}`;
-            updateConnectionMessage(currentConnectionStep.id, newMessage);
-            setCurrentConnectionStep({ ...currentConnectionStep, connectionMessage: newMessage });
+        if (focusedMessageType === 'premium') {
+            setPremiumMessage((current) => current + `{${variableId}}`);
+        } else {
+            setStandardMessage((current) => current + `{${variableId}}`);
         }
     };
 
+    // 4. Update the handleAddMessage function to set both message types
     const handleAddMessage = (step: SequenceStep) => {
         if (viewMode) return; // Prevent in view mode
 
         setCurrentConnectionStep(step);
+        
+        // Set message states from the step's stored values
+        // Give priority to the specific premium/standard fields if available
+        setPremiumMessage(step.premiumConnectionMessage || step.connectionMessage || '');
+        setStandardMessage(step.standardConnectionMessage || step.connectionMessage || '');
+        
         setIsConnectionMessageOpen(true);
     };
 
     const handleSaveMessage = () => {
         if (viewMode) return; // Prevent in view mode
 
+        if (currentConnectionStep) {
+            // Pass both premium and standard messages
+            updateConnectionMessage(
+                currentConnectionStep.id, 
+                premiumMessage,
+                standardMessage
+            );
+        }
+        
         setIsConnectionMessageOpen(false);
         setCurrentConnectionStep(null);
     };
@@ -644,28 +713,35 @@ const Sequence: React.FC<SequenceProps> = ({
                         <span className="text-slate-600 font-medium">Wait</span>
 
                         {viewMode ? (
-                            // View mode - properly handle zero days and dynamic reference point
+                            // View mode - properly handle zero days and include minutes
                             <span className="text-slate-600">
                                 {(() => {
                                     const days = typeof step.delay?.days === 'number' ? step.delay.days : 0;
                                     const hours = step.delay?.hours || 0;
+                                    const minutes = step.delay?.minutes || 0;
 
-                                    if (days === 0 && hours === 0) {
+                                    if (days === 0 && hours === 0 && minutes === 0) {
                                         return '0 days';
-                                    } else if (days === 0) {
-                                        return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
-                                    } else if (hours === 0) {
-                                        return `${days} ${days === 1 ? 'day' : 'days'}`;
-                                    } else {
-                                        return `${days} ${days === 1 ? 'day' : 'days'} and ${hours} ${hours === 1 ? 'hour' : 'hours'}`;
                                     }
+
+                                    let timeText = '';
+                                    if (days > 0) {
+                                        timeText += `${days} ${days === 1 ? 'day' : 'days'} `;
+                                    }
+                                    if (hours > 0) {
+                                        timeText += `${timeText.length > 0 ? 'and ' : ''}${hours} ${hours === 1 ? 'hour' : 'hours'} `;
+                                    }
+                                    if (minutes > 0) {
+                                        timeText += `${timeText.length > 0 ? 'and ' : ''}${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
+                                    }
+                                    return timeText.trim();
                                 })()}
                                 {followUpNumber === 1
                                     ? ' after connection is accepted'
                                     : ` after ${followUpNumber === 2 ? 'first' : followUpNumber === 3 ? 'second' : followUpNumber === 4 ? 'third' : (followUpNumber - 1) + 'th'} follow-up`}
                             </span>
                         ) : (
-                            // Edit mode - also update this part
+                            // Edit mode - add minutes input
                             <>
                                 <div className="flex items-center space-x-2">
                                     <input
@@ -689,6 +765,19 @@ const Sequence: React.FC<SequenceProps> = ({
                                         disabled={viewMode}
                                     />
                                     <span className="text-slate-600 text-xs">hours</span>
+                                </div>
+                                {/* Add minutes input */}
+                                <div className="flex items-center space-x-2">
+                                    <input
+                                        type="number"
+                                        value={step.delay?.minutes || 0}
+                                        onChange={(e) => updateDelay(step.id, 'minutes', parseInt(e.target.value) || 0)}
+                                        className="w-14 px-2 py-1.5 border border-slate-300 rounded-md text-center text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                        min="0"
+                                        max="59"
+                                        disabled={viewMode}
+                                    />
+                                    <span className="text-slate-600 text-xs">mins</span>
                                 </div>
                                 <span className="text-slate-500 text-xs">
                                     {followUpNumber === 1
@@ -780,7 +869,6 @@ const Sequence: React.FC<SequenceProps> = ({
                                                 variant="outline"
                                                 size="sm"
                                                 onClick={() => {
-                                                    console.log(`Inserting variable: ${variable.id} into step: ${step.id}`);
                                                     insertVariable(step.id, variable.id);
                                                 }}
                                                 className="h-7 text-xs px-2 border-gray-200 hover:bg-indigo-50"
@@ -879,7 +967,7 @@ const Sequence: React.FC<SequenceProps> = ({
                 )}
 
                 {renderLeadListInfo()}
-                
+
                 {/* Add the "exclude connected" option below the lead info */}
                 {hasFollowUps && (
                     <div className={`mb-6 ${viewMode ? 'bg-gray-50/50' : 'bg-white'} border ${viewMode ? 'border-gray-100' : 'border-gray-200'} rounded-lg p-4 shadow-sm`}>
@@ -897,14 +985,14 @@ const Sequence: React.FC<SequenceProps> = ({
                                         disabled={viewMode}
                                         className="data-[state=checked]:bg-blue-600"
                                     />
-                                    <Label 
-                                        htmlFor="exclude-connected" 
+                                    <Label
+                                        htmlFor="exclude-connected"
                                         className="text-sm font-medium cursor-pointer"
                                     >
                                         Don't send follow-ups to already connected
                                     </Label>
                                 </div>
-                                
+
                                 {excludeConnected && (
                                     <Badge className="bg-blue-100 text-blue-700 border-blue-200">
                                         Active
@@ -912,7 +1000,7 @@ const Sequence: React.FC<SequenceProps> = ({
                                 )}
                             </div>
                         </div>
-                        
+
                         {excludeConnected && (
                             <div className="mt-2 p-2 bg-blue-50 rounded-md">
                                 <p className="text-xs text-blue-700 flex items-center">
@@ -998,7 +1086,7 @@ const Sequence: React.FC<SequenceProps> = ({
                         </SheetDescription>
                     </SheetHeader>
 
-                    <div className="mt-6 space-y-4 flex-1">
+                    <div className="mt-6 space-y-6 flex-1">
                         {viewMode && (
                             <div className="bg-blue-50 p-2 rounded-md text-sm text-blue-700 flex items-center mb-4">
                                 <Eye className="w-4 h-4 mr-2" />
@@ -1006,33 +1094,163 @@ const Sequence: React.FC<SequenceProps> = ({
                             </div>
                         )}
 
-                        <div>
-                            <label className="text-sm font-medium text-gray-700 mb-2 block">
-                                Message
-                            </label>
-                            {viewMode ? (
-                                <div className="p-3 bg-gray-50 rounded-md border border-gray-200 text-sm text-gray-700 whitespace-pre-wrap min-h-[120px]">
-                                    {currentConnectionStep?.connectionMessage || 'No message content'}
+                        {/* Premium Accounts Section */}
+                        {groupedAccounts.premium.length > 0 && (
+                          <div className="mb-4">
+                            <p className="text-xs text-gray-500 mb-2">Premium Accounts</p>
+                            <div className="flex flex-wrap gap-2 mb-3">
+                              {groupedAccounts.premium.map(account => (
+                                <div key={account.id} className="flex items-center bg-amber-50 border border-amber-100 rounded-md px-2 py-1">
+                                  <Avatar className="h-6 w-6 mr-1.5">
+                                    {account.profileImageUrl ? (
+                                      <AvatarImage src={account.profileImageUrl} alt={account.firstName} />
+                                    ) : (
+                                      <AvatarFallback className="bg-amber-100 text-amber-800 text-xs">
+                                        {account.firstName?.[0]}
+                                      </AvatarFallback>
+                                    )}
+                                  </Avatar>
+                                  <span className="text-xs font-medium text-amber-900">{account.firstName}</span>
+                                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full ml-1.5"></div>
                                 </div>
-                            ) : (
-                                <Textarea
-                                    value={currentConnectionStep?.connectionMessage || ''}
-                                    onChange={(e) => {
-                                        if (currentConnectionStep && !viewMode) {
-                                            updateConnectionMessage(currentConnectionStep.id, e.target.value);
-                                            setCurrentConnectionStep({ ...currentConnectionStep, connectionMessage: e.target.value });
-                                        }
-                                    }}
-                                    placeholder="Hi {first_name}, I'd like to connect with you..."
-                                    className="min-h-[120px] resize-none"
-                                    disabled={viewMode}
-                                />
-                            )}
-                        </div>
+                              ))}
+                            </div>
+                                                    
+                            {/* Premium Message Input - Keep the same */}
+                            <div className="mb-6">
+                              <label className="text-sm font-medium text-gray-700 mb-2 block flex justify-between">
+                                <span>Premium Message</span>
+                                <span className={`text-xs ${getCharacterLimitColor(premiumMessage.length, 300)}`}>
+                                  {premiumMessage.length}/300
+                                  <span className="ml-1 bg-amber-100 text-amber-700 px-1 rounded text-[10px] font-medium">
+                                    PREMIUM
+                                  </span>
+                                </span>
+                              </label>
+                              
+                              {viewMode ? (
+                                <div className="p-3 bg-gray-50 rounded-md border border-gray-200 text-sm text-gray-700 whitespace-pre-wrap min-h-[120px]">
+                                    {premiumMessage || 'No message content'}
+                                </div>
+                              ) : (
+                                <div className="relative">
+                                  <Textarea
+                                      value={premiumMessage}
+                                      onChange={(e) => {
+                                          if (!viewMode) {
+                                              // Limit premium input to 300 characters
+                                              const newText = e.target.value.slice(0, 300);
+                                              setPremiumMessage(newText);
+                                          }
+                                      }}
+                                      onFocus={() => setFocusedMessageType('premium')}
+                                      placeholder="Hi {first_name}, I'd like to connect with you... (Premium: 300 characters allowed)"
+                                      className={`min-h-[120px] resize-none bg-amber-50 border-amber-200 focus:border-amber-300 focus:ring-amber-200 ${
+                                          premiumMessage.length >= 300
+                                              ? "border-red-300 focus:border-red-500 focus:ring-red-200"
+                                              : focusedMessageType === 'premium' ? "ring-2 ring-amber-300" : ""
+                                      }`}
+                                      disabled={viewMode}
+                                  />
+                                  
+                                  {premiumMessage.length >= 300 && (
+                                      <div className="mt-1 text-xs text-red-500 flex items-center">
+                                          <AlertCircle className="w-3 h-3 mr-1" />
+                                          You've reached the premium character limit (300)
+                                      </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
 
+                        {/* Standard Accounts Section */}
+                        {groupedAccounts.standard.length > 0 && (
+                          <div className="mb-4">
+                            <p className="text-xs text-gray-500 mb-2">Standard Accounts</p>
+                            <div className="flex flex-wrap gap-2 mb-3">
+                              {groupedAccounts.standard.map(account => (
+                                <div key={account.id} className="flex items-center bg-blue-50 border border-blue-100 rounded-md px-2 py-1">
+                                  <Avatar className="h-6 w-6 mr-1.5">
+                                    {account.profileImageUrl ? (
+                                      <AvatarImage src={account.profileImageUrl} alt={account.firstName} />
+                                    ) : (
+                                      <AvatarFallback className="bg-blue-100 text-blue-800 text-xs">
+                                        {account.firstName?.[0]}
+                                      </AvatarFallback>
+                                    )}
+                                  </Avatar>
+                                  <span className="text-xs font-medium text-blue-900">{account.firstName}</span>
+                                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full ml-1.5"></div>
+                                </div>
+                              ))}
+                            </div>
+                            
+                            {/* Standard Message Input */}
+                            <div className="mb-6">
+                              <label className="text-sm font-medium text-gray-700 mb-2 block flex justify-between">
+                                <span>Standard Message</span>
+                                <span className={`text-xs ${getCharacterLimitColor(standardMessage.length, 200)}`}>
+                                  {standardMessage.length}/200
+                                  <span className="ml-1 bg-blue-100 text-blue-700 px-1 rounded text-[10px] font-medium">
+                                    STANDARD
+                                  </span>
+                                </span>
+                              </label>
+                              
+                              {viewMode ? (
+                                <div className="p-3 bg-gray-50 rounded-md border border-gray-200 text-sm text-gray-700 whitespace-pre-wrap min-h-[120px]">
+                                    {standardMessage || 'No message content'}
+                                </div>
+                              ) : (
+                                <div className="relative">
+                                  <Textarea
+                                      value={standardMessage}
+                                      onChange={(e) => {
+                                          if (!viewMode) {
+                                              // Limit standard input to 200 characters
+                                              const newText = e.target.value.slice(0, 200);
+                                              setStandardMessage(newText);
+                                          }
+                                      }}
+                                      onFocus={() => setFocusedMessageType('standard')}
+                                      placeholder="Hi {first_name}, I'd like to connect with you... (Standard: 200 characters allowed)"
+                                      className={`min-h-[120px] resize-none bg-blue-50 border-blue-200 focus:border-blue-300 focus:ring-blue-200 ${
+                                          standardMessage.length >= 200
+                                              ? "border-red-300 focus:border-red-500 focus:ring-red-200"
+                                              : focusedMessageType === 'standard' ? "ring-2 ring-blue-300" : ""
+                                      }`}
+                                      disabled={viewMode}
+                                  />
+                                  
+                                  {standardMessage.length >= 200 && (
+                                      <div className="mt-1 text-xs text-red-500 flex items-center">
+                                          <AlertCircle className="w-3 h-3 mr-1" />
+                                          You've reached the standard character limit (200). Upgrade to premium for longer messages.
+                                      </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Variables Section */}
                         {!viewMode && (
                             <div>
-                                <p className="text-sm font-medium text-gray-700 mb-3">Insert Variables</p>
+                                <div className="flex items-center justify-between mb-3">
+                                    <p className="text-sm font-medium text-gray-700">Insert Variables</p>
+                                    <Badge 
+                                        className={focusedMessageType === 'premium' 
+                                            ? "bg-amber-100 text-amber-700 border-amber-200"
+                                            : "bg-blue-100 text-blue-700 border-blue-200"
+                                        }
+                                    >
+                                        Adding to {focusedMessageType === 'premium' ? 'Premium' : 'Standard'} message
+                                    </Badge>
+                                </div>
+                                
                                 <div className="grid grid-cols-2 gap-2">
                                     {variables.map(variable => (
                                         <Button
@@ -1040,10 +1258,15 @@ const Sequence: React.FC<SequenceProps> = ({
                                             variant="outline"
                                             size="sm"
                                             onClick={() => insertConnectionVariable(variable.id)}
-                                            className="justify-start"
+                                            className={`justify-start ${focusedMessageType === 'premium' 
+                                                ? "bg-amber-50 border-amber-200 hover:bg-amber-100" 
+                                                : "bg-blue-50 border-blue-200 hover:bg-blue-100"
+                                            }`}
                                             disabled={viewMode}
                                         >
-                                            <User className="w-4 h-4 mr-2" />
+                                            <User className={`w-4 h-4 mr-2 ${
+                                                focusedMessageType === 'premium' ? "text-amber-700" : "text-blue-700"
+                                            }`} />
                                             {variable.name}
                                         </Button>
                                     ))}
@@ -1052,7 +1275,7 @@ const Sequence: React.FC<SequenceProps> = ({
                         )}
                     </div>
 
-                    <div className="flex gap-3 pt-6 border-t">
+                    <div className="flex gap-3 pt-6 border-t mt-4">
                         {!viewMode && (
                             <Button
                                 onClick={handleSaveMessage}

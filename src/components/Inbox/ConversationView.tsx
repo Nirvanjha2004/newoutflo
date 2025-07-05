@@ -19,33 +19,63 @@ export const ConversationView = ({ conversation, onClose, onProfilePreview }: Co
   const [message, setMessage] = useState("");
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const conversationViewRef = useRef<HTMLDivElement>(null);
   const { data: appUserAccountsData = [] } = useAccountsQuery();
   const { data: conversationDetail, isLoading: loading, error } = useMessagesQuery(conversation?.id);
   const postMessageMutation = usePostMessage();
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+  const previousMessagesLength = useRef(0);
+  const isInitialLoad = useRef(true);
 
 
   console.log("The conversation detail:", conversationDetail);
   // Extract messages array from API response (handles different response formats)
   const messages = useMemo(() => {
+    let messagesArray = [];
+
     if (!conversationDetail) return [];
 
-    // Handle case where messages is a property of conversationDetail
+    // Handle different response formats
     if (conversationDetail.messages && Array.isArray(conversationDetail.messages))
-      return conversationDetail.messages;
+      messagesArray = conversationDetail.messages;
+    else if (Array.isArray(conversationDetail))
+      messagesArray = conversationDetail;
+    else {
+      console.error("Unknown message data format:", conversationDetail);
+      return [];
+    }
 
-    // Handle case where conversationDetail is directly the messages array
-    if (Array.isArray(conversationDetail))
-      return conversationDetail;
-
-    console.error("Unknown message data format:", conversationDetail);
-    return [];
+    // Sort messages by timestamp (ascending order - oldest first)
+    return messagesArray.sort((a, b) => {
+      const timeA = typeof a.sentAt === 'string' ? parseInt(a.sentAt, 10) : a.sentAt;
+      const timeB = typeof b.sentAt === 'string' ? parseInt(b.sentAt, 10) : b.sentAt;
+      return timeA - timeB;
+    });
   }, [conversationDetail]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
-    if (messagesEndRef.current) {
+    if (!messages || messages.length === 0) return;
+    
+    // Check if new messages have been added
+    const isNewMessage = messages.length > previousMessagesLength.current;
+    
+    // Store current message count for next comparison
+    previousMessagesLength.current = messages.length;
+    
+    // Decide whether to scroll based on conditions
+    const shouldScrollNow = 
+      // Initial load - always scroll to bottom
+      isInitialLoad.current || 
+      // New message AND user was already at/near bottom
+      (isNewMessage && shouldAutoScroll);
+    
+    if (shouldScrollNow && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
+    
+    // After first render, mark initial load as complete
+    isInitialLoad.current = false;
   }, [messages]);
 
   const handleSendMessage = async () => {
@@ -77,15 +107,10 @@ export const ConversationView = ({ conversation, onClose, onProfilePreview }: Co
 
   // Determine if a message is sent by the current user
   const isOwnMessage = (msg: Message) => {
-    if (!conversation || !msg.senderUrn) return false;
+    if (!msg.senderUrn || !appUserAccountsData) return false;
 
-    // Here's the issue - we need to invert this logic
-    // In your current setup, accounts[0] is typically YOUR account, not the contact
-    // So messages FROM that account should appear on the right (as your own messages)
-    const primaryAccount = conversation.accounts[0];
-
-    // With the corrected logic: message IS from you if it matches the primary account
-    return msg.senderUrn === primaryAccount.urn;
+    // Check if the message sender URN matches any of the user's accounts
+    return appUserAccountsData.some(account => account.urn === msg.senderUrn);
   };
 
   // Format timestamp for display
@@ -106,7 +131,45 @@ export const ConversationView = ({ conversation, onClose, onProfilePreview }: Co
     if (!timestamp) return "Today";
 
     const timeValue = typeof timestamp === 'string' ? parseInt(timestamp, 10) : timestamp;
-    return new Date(timeValue).toLocaleDateString();
+    const messageDate = new Date(timeValue);
+
+    // Check if the message date is today
+    const today = new Date();
+    if (
+      messageDate.getDate() === today.getDate() &&
+      messageDate.getMonth() === today.getMonth() &&
+      messageDate.getFullYear() === today.getFullYear()
+    ) {
+      return "Today";
+    }
+
+    console.log(`Message timestamp: ${timestamp}, Date: ${messageDate.toISOString()}, Today: ${today.toISOString()}`);
+
+
+    // Optional: Check if it's yesterday
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (
+      messageDate.getDate() === yesterday.getDate() &&
+      messageDate.getMonth() === yesterday.getMonth() &&
+      messageDate.getFullYear() === yesterday.getFullYear()
+    ) {
+      return "Yesterday";
+    }
+
+    // Return the formatted date for other days
+    return messageDate.toLocaleDateString();
+  };
+
+  const handleScroll = () => {
+    if (!conversationViewRef.current) return;
+    
+    const { scrollTop, scrollHeight, clientHeight } = conversationViewRef.current;
+    // User is considered "at bottom" if they're within 100px of the bottom
+    const isAtBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 100;
+    
+    // Only enable auto-scroll if user is at or near the bottom
+    setShouldAutoScroll(isAtBottom);
   };
 
   if (!conversation) {
@@ -167,6 +230,7 @@ export const ConversationView = ({ conversation, onClose, onProfilePreview }: Co
   const senderFullName = `${senderAccount?.firstName || ''} ${senderAccount?.lastName || ''}`.trim();
   const senderInitials = `${(senderAccount?.firstName || ' ')[0] || ''}${(senderAccount?.lastName || ' ')[0] || ''}`.toUpperCase();
 
+  console.log("The conversation Details are :", conversationDetail);
   return (
     <div className="flex-1 flex flex-col h-full">
       {/* Profile Header */}
@@ -250,19 +314,27 @@ export const ConversationView = ({ conversation, onClose, onProfilePreview }: Co
               </span>
             </Button>
             */}
-            <Button variant="ghost" size="icon" className="rounded-full h-9 w-9 border border-gray-100" onClick={onClose}>
+            {/* <Button variant="ghost" size="icon" className="rounded-full h-9 w-9 border border-gray-100" onClick={onClose}>
               <MoreHorizontal size={18} />
-            </Button>
+            </Button> */}
           </div>
         </div>
       </div>
 
       {/* Conversation View - Enhanced message area */}
-      <div className="conversation-view flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
+      <div 
+        ref={conversationViewRef}
+        onScroll={handleScroll}
+        className="conversation-view flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50"
+      >
         {/* Date header with better styling */}
         <div className="text-center my-4">
           <span className="text-xs text-purple-600 bg-purple-50 px-3 py-1 rounded-full border border-purple-200 font-medium shadow-sm">
-            {conversationDetail ? formatDate(conversationDetail.createdAt || conversationDetail.createdAtEpoch) : 'Today'}
+            {messages.length > 0 
+              ? formatDate(messages[0].sentAt) 
+              : (conversationDetail 
+                  ? formatDate(conversationDetail.createdAt || conversationDetail.createdAtEpoch) 
+                  : 'Today')}
           </span>
         </div>
 
@@ -283,64 +355,84 @@ export const ConversationView = ({ conversation, onClose, onProfilePreview }: Co
                   </div>
                 )}
 
-                <div className={`flex items-end ${own ? 'justify-end' : 'justify-start'} mb-5`}>
-                  {!own && (
-                    <Avatar className="w-8 h-8 mr-2 mb-1 flex-shrink-0 ring-2 ring-gray-100">
-                      {contactAccount.profileImageUrl ? (
-                        <AvatarImage
-                          src={contactAccount.profileImageUrl}
-                          alt={fullName}
-                          className="object-cover"
-                          referrerPolicy="no-referrer"
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                        />
-                      ) : (
-                        <AvatarFallback className="bg-gray-200 text-gray-600 text-xs">
-                          {initials}
-                        </AvatarFallback>
-                      )}
-                    </Avatar>
-                  )}
-
-                  <div className={`message max-w-xs lg:max-w-md ${own ? 'mr-0' : 'ml-0 mr-0'}`}>
-                    <div className={`px-4 py-3 rounded-2xl ${own
-                      ? 'bg-purple-600 text-white rounded-br-none shadow-md'
-                      : 'bg-white text-gray-900 border border-gray-200 rounded-bl-none shadow-sm'
-                      }`}>
-                      <p className="whitespace-pre-wrap text-sm">{msg.text}</p>
-                    </div>
-                    <div className={`text-[11px] mt-1 ${own ? 'text-right text-gray-500' : 'text-gray-500'}`}>
-                      {formatTimestamp(msg.sentAt)}
-                      {own && <span className="ml-1 font-medium">You</span>}
+                {/* Check if this is a system message */}
+                {msg.isSystemMessage ? (
+                  // LinkedIn-style system message with purple rounded container
+                  <div className="flex flex-col items-center my-4">
+                    <div className="px-4 py-2 rounded-full bg-gray-100 border border-gray-200 text-center text-xs text-gray-500 font-medium">
+                      {msg.text}
                     </div>
                   </div>
-
-                  {/* Add avatar for own messages */}
-                  {own && (
-                    <Avatar className="w-8 h-8 ml-2 mb-1 flex-shrink-0 ring-2 ring-purple-100">
-                      {/* Find the user account that sent this message */}
-                      {(() => {
-                        // Find the user account that matches the sender URN
-                        const senderAccount = appUserAccountsData.find(acc => acc.urn === msg.senderUrn) || appUserAccountsData[0];
-                        const userInitials = `${(senderAccount?.firstName || ' ')[0] || ''}${(senderAccount?.lastName || ' ')[0] || ''}`.toUpperCase();
-
-                        return senderAccount?.profileImageUrl ? (
+                ) : (
+                  // Regular message rendering (existing code)
+                  <div className={`flex items-end ${own ? 'justify-end' : 'justify-start'} mb-5`}>
+                    {/* Existing message rendering code */}
+                    {!own && (
+                      <Avatar className="w-8 h-8 mr-2 mb-1 flex-shrink-0 ring-2 ring-gray-100">
+                        {contactAccount.profileImageUrl ? (
                           <AvatarImage
-                            src={senderAccount.profileImageUrl}
-                            alt="You"
+                            src={contactAccount.profileImageUrl}
+                            alt={fullName}
                             className="object-cover"
                             referrerPolicy="no-referrer"
                             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                           />
                         ) : (
-                          <AvatarFallback className="bg-purple-100 text-purple-600 text-xs">
-                            {userInitials || 'You'}
+                          <AvatarFallback className="bg-gray-200 text-gray-600 text-xs">
+                            {initials}
                           </AvatarFallback>
-                        );
-                      })()}
-                    </Avatar>
-                  )}
-                </div>
+                        )}
+                      </Avatar>
+                    )}
+
+                    <div className={`message max-w-xs lg:max-w-md ${own ? 'mr-0' : 'ml-0 mr-0'}`}>
+                      <div className={`px-4 py-3 rounded-2xl overflow-hidden ${own
+                        ? 'bg-purple-600 text-white rounded-br-none shadow-md'
+                        : 'bg-white text-gray-900 border border-gray-200 rounded-bl-none shadow-sm'
+                        }`}>
+                        <p className="whitespace-pre-wrap text-sm break-words overflow-hidden">
+                          {msg.text.includes('http') 
+                            ? msg.text.split(/\s+/).map((part, i) => 
+                                part.startsWith('http') 
+                                  ? <span key={i} className="break-all">{part} </span>
+                                  : <span key={i}>{part} </span>
+                              )
+                            : msg.text}
+                        </p>
+                      </div>
+                      <div className={`text-[11px] mt-1 ${own ? 'text-right text-gray-500' : 'text-gray-500'}`}>
+                        {formatTimestamp(msg.sentAt)}
+                        {own && <span className="ml-1 font-medium">You</span>}
+                      </div>
+                    </div>
+
+                    {/* Add avatar for own messages */}
+                    {own && (
+                      <Avatar className="w-8 h-8 ml-2 mb-1 flex-shrink-0 ring-2 ring-purple-100">
+                        {/* Find the user account that sent this message */}
+                        {(() => {
+                          // Find the user account that matches the sender URN
+                          const senderAccount = appUserAccountsData.find(acc => acc.urn === msg.senderUrn) || appUserAccountsData[0];
+                          const userInitials = `${(senderAccount?.firstName || ' ')[0] || ''}${(senderAccount?.lastName || ' ')[0] || ''}`.toUpperCase();
+
+                          return senderAccount?.profileImageUrl ? (
+                            <AvatarImage
+                              src={senderAccount.profileImageUrl}
+                              alt="You"
+                              className="object-cover"
+                              referrerPolicy="no-referrer"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                            />
+                          ) : (
+                            <AvatarFallback className="bg-purple-100 text-purple-600 text-xs">
+                              {userInitials || 'You'}
+                            </AvatarFallback>
+                          );
+                        })()}
+                      </Avatar>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })

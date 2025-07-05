@@ -1,11 +1,13 @@
 
 export type Message = {
+  id: string;
   createdAt: number;
   updatedAt: number;
   urn: string;
   senderUrn: string;
   text: string;
   sentAt: number;
+  isSystemMessage: boolean;
 };
 
 export type User = {
@@ -22,6 +24,7 @@ export type Conversation = {
   lastActivityAt: number;
   accountURNs: string[];
   accounts: {
+    profileImageUrl: any;
     urn: string;
     firstName: string;
     lastName: string;
@@ -33,6 +36,7 @@ export type Conversation = {
 };
 
 export type ConversationDetail = {
+  createdAtEpoch: number;
   id: string;
   createdAt: number;
   updatedAt: number;
