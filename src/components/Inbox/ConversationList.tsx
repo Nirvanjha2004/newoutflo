@@ -150,6 +150,9 @@ export const ConversationList = ({
   );
 
 
+  console.log("Conversations Data: final ", conversationsData);
+
+
   // const filteredConversations = useMemo(() => {
   //   // Assuming `conversationsData` is the array of conversations
   //   return conversationsData.filter(conversation => {
@@ -192,15 +195,13 @@ export const ConversationList = ({
       .map(account => account.urn)
       .filter(Boolean);
 
-    // Filter conversations by participation, not just last message sender
     return conversationsData.filter(conversation => {
-      // If conversation has no accountURNs array, skip it
       if (!conversation.accountURNs || conversation.accountURNs.length === 0) {
         return false;
       }
-      
+
       // Include conversation if any of the selected accounts is a participant
-      return selectedAccountUrns.some(selectedUrn => 
+      return selectedAccountUrns.some(selectedUrn =>
         conversation.accountURNs.includes(selectedUrn)
       );
     });
@@ -215,22 +216,22 @@ export const ConversationList = ({
     // FIXED SEARCH LOGIC
     if (searchTerm && searchTerm.trim() !== "") {
       const term = searchTerm.toLowerCase().trim();
-      
+
       result = result.filter(conversation => {
         // Check participant names
         const nameMatch = conversation.accounts?.some(account => {
           const first = (account.firstName || "").toLowerCase();
           const last = (account.lastName || "").toLowerCase();
           const full = `${first} ${last}`.trim();
-          
-          return first.includes(term) || 
-                 last.includes(term) || 
-                 full.includes(term);
+
+          return first.includes(term) ||
+            last.includes(term) ||
+            full.includes(term);
         });
-        
+
         // Check message content
         const messageMatch = (conversation.lastMessage?.text || "").toLowerCase().includes(term);
-        
+
         return nameMatch || messageMatch;
       });
     }
@@ -462,7 +463,7 @@ export const ConversationList = ({
         </Button>
 
         {/* Add the modal component */}
-        <LinkedInConnectionModal 
+        <LinkedInConnectionModal
           isOpen={isConnectionModalOpen}
           onClose={() => setIsConnectionModalOpen(false)}
         />
@@ -533,7 +534,7 @@ export const ConversationList = ({
 
       {/* Display conversations using finalFilteredConversations */}
       <div className="space-y-4">
-        {finalFilteredConversations.map((conversation) => {
+        {finalFilteredConversations.filter(conversation => Array.isArray(conversation.messages) && conversation.messages.length > 0).map((conversation) => {
           const initialAppUserAccountDetails = getAccount(conversation, "account");
           const validAppUserAccountFound = !!initialAppUserAccountDetails?.urn;
           const primarySentByFullName = validAppUserAccountFound

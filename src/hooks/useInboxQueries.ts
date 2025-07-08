@@ -40,6 +40,8 @@ export const useConversationsQuery = (
     options: {
       enabled: isAuthenticated,
       refetchInterval: 1000,
+      staleTime: 5 * 60 * 1000, // 5 minutes: data is considered fresh for 5 minutes
+      cacheTime: 30 * 60 * 1000, // 30 minutes: cache stays in memory for 30 minutes
       onSuccess: () => {
         setSearchLoading?.(false);
       },
