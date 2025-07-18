@@ -76,13 +76,19 @@ const CampaignsListContent = () => {
         connectionsSent: 0,
         connectionsAccepted: 0,
         messagesSent: 0,
-        messagesReceived: 0
+        messagesReceived: 0,
+        totalLeads: 0
       }
     }));
   }, [campaigns, campaignInsightsMap, searchQuery, selectedStatuses]);
   
   // Calculate total statistics using the filtered campaigns data
-  const totalLeads = filteredCampaignsWithInsights.reduce((sum, c) => sum + (c.leads?.length || 0), 0);
+  const totalLeads = filteredCampaignsWithInsights.reduce((sum, c) => {
+    if (c.insights) {
+      return sum + (c.insights.totalLeads || 0);
+    }
+    return sum;
+  }, 0);
   const totalSent = filteredCampaignsWithInsights.reduce((sum, c) => {
     // If we have insights, use them
     if (c.insights) {
@@ -535,7 +541,7 @@ const CampaignsListContent = () => {
                       
                       <TableCell>
                         <div className="flex flex-col">
-                          <span className="font-medium">{campaign.leads?.length || 0}</span>
+                          <span className="font-medium">{campaign.insights?.totalLeads || 0}</span>
                           <div className="w-full h-1.5 bg-gray-100 rounded-full mt-1">
                             <div className="h-full bg-purple-500 rounded-full" style={{width: '100%'}}></div>
                           </div>
@@ -553,7 +559,7 @@ const CampaignsListContent = () => {
                                 <div 
                                   className="h-full bg-blue-500 rounded-full" 
                                   style={{
-                                    width: `${campaign.leads?.length ? Math.min(100, (campaign.insights?.connectionRequestsSent || 0) / campaign.leads.length * 100) : 0}%`
+                                    width: `${campaign.insights?.totalLeads ? Math.min(100, (campaign.insights?.connectionRequestsSent || 0) / campaign.insights.totalLeads * 100) : 0}%`
                                   }}
                                 ></div>
                               </div>
